@@ -6,6 +6,7 @@ chrome.runtime.onInstalled.addListener(async () => {
     title: "Save to A few words",
     contexts: ["selection"]
   })
+  chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true })
 })
 
 // Open a new search tab when the user clicks a context menu
