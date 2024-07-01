@@ -1,4 +1,8 @@
+import { Storage } from "@plasmohq/storage"
+
 export {}
+
+const storage = new Storage()
 
 chrome.runtime.onInstalled.addListener(async () => {
   chrome.contextMenus.create({
@@ -17,14 +21,14 @@ chrome.contextMenus.onClicked.addListener((item, tab) => {
       {
         target: { tabId: tab.id },
         func: () => {
+          console.log('aaa')
           return window.getSelection()?.toString()
         }
       },
-      (selectedText) => {
+      async (selectedText) => {
+        console.log('bbb')
         const text = selectedText[0].result
-        chrome.storage.local.set({ text: text }, () => {
-          console.log("Text is set to " + text)
-        })
+        await storage.set("text", text)
       }
     )
   }
