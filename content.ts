@@ -5,3 +5,10 @@ export const getStyle = () => {
   style.textContent = cssText.replaceAll(':root', ':host(plasmo-csui)');
   return style
 }
+
+export type Card = {
+  front: string
+  back: string
+}
+
+export type CardList = Card[]

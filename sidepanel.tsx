@@ -1,10 +1,17 @@
 import { useStorage } from "@plasmohq/storage/hook"
 
+import type { CardList } from "~content"
+
 const SidePanel = () => {
-  const [text] = useStorage("text");
+  const [cards] = useStorage<CardList>("cards", [])
   return (
-    <div className="side-panel">
-      <h2>{text}</h2>
+    <div>
+      {cards.map((card, index) => (
+        <div key={index}>
+          <div>{card.front}</div>
+          <div>{card.back}</div>
+        </div>
+      ))}
     </div>
   )
 }

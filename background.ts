@@ -1,8 +1,7 @@
 import { Storage } from "@plasmohq/storage"
+import type { CardList } from "~content"
 
 export {}
-
-const storage = new Storage()
 
 chrome.runtime.onInstalled.addListener(async () => {
   chrome.contextMenus.create({
@@ -20,15 +19,14 @@ chrome.contextMenus.onClicked.addListener((item, tab) => {
     chrome.scripting.executeScript(
       {
         target: { tabId: tab.id },
-        func: () => {
-          console.log('aaa')
-          return window.getSelection()?.toString()
-        }
+        func: () => window.getSelection()?.toString()
       },
       async (selectedText) => {
-        console.log('bbb')
         const text = selectedText[0].result
-        await storage.set("text", text)
+        const storage = new Storage()
+        const cards = await storage.get<CardList>("cards") || []
+        cards.push({ front: text, back: "" })
+        await storage.set("cards", cards)
       }
     )
   }
