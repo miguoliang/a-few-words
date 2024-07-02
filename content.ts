@@ -6,9 +6,9 @@ export const getStyle = () => {
   return style
 }
 
-export type Card = {
+export type Sentence = {
   front: string
   back: string
 }
 
-export type CardList = Card[]
+export type SentenceList = Sentence[]
