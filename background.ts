@@ -1,5 +1,5 @@
 import { Storage } from "@plasmohq/storage"
-import type { CardList } from "~content"
+import type { SentenceList } from "~content"
 
 export {}
 
@@ -24,7 +24,7 @@ chrome.contextMenus.onClicked.addListener((item, tab) => {
       async (selectedText) => {
         const text = selectedText[0].result
         const storage = new Storage()
-        const cards = await storage.get<CardList>("cards") || []
+        const cards = await storage.get<SentenceList>("cards") || []
         cards.push({ front: text, back: "" })
         await storage.set("cards", cards)
       }
