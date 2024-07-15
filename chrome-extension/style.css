@@ -1,0 +1,10 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.collapse {
+  @apply rounded-lg;
+}
+.collapse-title {
+  @apply p-2;
+}

@@ -1,0 +1,11 @@
+[package]
+name = "server"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+actix-rt = "2.10.0"
+actix-web = "4.8.0"
+diesel = { version = "2.2.1", features = ["postgres", "r2d2"] }
+dotenvy = "0.15.7"
+serde = { version = "1.0.204", features = ["derive"] }
