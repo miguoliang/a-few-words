@@ -3,6 +3,19 @@
 version = 3
 
 [[package]]
+name = "a-few-words"
+version = "0.1.0"
+dependencies = [
+ "actix-web",
+ "diesel",
+ "serde",
+ "shuttle-actix-web",
+ "shuttle-runtime",
+ "shuttle-shared-db",
+ "tokio",
+]
+
+[[package]]
 name = "actix-codec"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2010,19 +2023,6 @@ dependencies = [
  "itoa",
  "ryu",
  "serde",
-]
-
-[[package]]
-name = "server"
-version = "0.1.0"
-dependencies = [
- "actix-web",
- "diesel",
- "serde",
- "shuttle-actix-web",
- "shuttle-runtime",
- "shuttle-shared-db",
- "tokio",
 ]
 
 [[package]]
