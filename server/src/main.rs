@@ -3,7 +3,8 @@ use actix_web::{
     web::{self, Data, ServiceConfig},
     Responder,
 };
-use diesel::{r2d2, PgConnection, RunQueryDsl, SelectableHelper};
+use diesel::{pg::Pg, r2d2, PgConnection, RunQueryDsl, SelectableHelper};
+use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use models::{NewWord, Word};
 use shuttle_actix_web::ShuttleActixWeb;
 
@@ -12,11 +13,19 @@ mod schema;
 
 type DbPool = r2d2::Pool<r2d2::ConnectionManager<PgConnection>>;
 
+pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("./migrations");
+
+fn run_migrations(conn: &mut impl MigrationHarness<Pg>) {
+    conn.run_pending_migrations(MIGRATIONS)
+        .expect("Failed to run database migrations");
+}
+
 #[shuttle_runtime::main]
 async fn main(
     #[shuttle_shared_db::Postgres(
         local_uri = "postgres://username:{secrets.PASSWORD}@localhost:5432/a-few-words"
-    )] conn_str: String,
+    )]
+    conn_str: String,
 ) -> ShuttleActixWeb<impl FnOnce(&mut ServiceConfig) + Send + Clone + 'static> {
     let app_config = move |cfg: &mut ServiceConfig| {
         // connect to PostgreSQL database
@@ -24,7 +33,7 @@ async fn main(
         let pool = r2d2::Pool::builder()
             .build(manager)
             .expect("database URL should be valid path to SQLite DB file");
-
+        run_migrations(&mut pool.get().expect("couldn't get DB connection from pool"));
         cfg.app_data(Data::new(pool.clone()))
             .route("/words", web::get().to(get_words))
             .route("/words", web::post().to(create_word));

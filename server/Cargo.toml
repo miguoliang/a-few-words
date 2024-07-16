@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 actix-web = "4.8.0"
 diesel = { version = "2.1.6", features = ["postgres", "r2d2"] }
+diesel_migrations = { version = "2.1.0", features = ["postgres"] }
 serde = { version = "1.0.204", features = ["derive"] }
 shuttle-actix-web = "0.46.0"
 shuttle-runtime = "0.46.0"
