@@ -1,0 +1,1 @@
+ALTER TABLE words ADD COLUMN meaning VARCHAR(255);

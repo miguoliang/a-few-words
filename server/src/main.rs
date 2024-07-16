@@ -33,7 +33,8 @@ async fn main(
         let pool = r2d2::Pool::builder()
             .build(manager)
             .expect("database URL should be valid path to SQLite DB file");
-        run_migrations(&mut pool.get().expect("couldn't get DB connection from pool"));
+        let mut conn = pool.get().expect("couldn't get DB connection from pool");
+        run_migrations(&mut conn);
         cfg.app_data(Data::new(pool.clone()))
             .route("/words", web::get().to(get_words))
             .route("/words", web::post().to(create_word));
