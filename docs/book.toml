@@ -1,0 +1,6 @@
+[book]
+authors = ["Mi Guoliang"]
+language = "en"
+multilingual = false
+src = "src"
+title = "Guide to A Few Words"
