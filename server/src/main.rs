@@ -32,8 +32,9 @@ async fn main(
         let manager = r2d2::ConnectionManager::<PgConnection>::new(conn_str);
         let pool = r2d2::Pool::builder()
             .build(manager)
-            .expect("database URL should be valid path to SQLite DB file");
-        let mut conn = pool.get().expect("couldn't get DB connection from pool");
+            .map_err(error::ErrorInternalServerError)
+            .unwrap();
+        let mut conn = pool.get().map_err(error::ErrorInternalServerError).unwrap();
         run_migrations(&mut conn);
         drop(conn);
         cfg.app_data(Data::new(pool.clone()))
@@ -46,7 +47,7 @@ async fn main(
 async fn get_words(pool: Data<DbPool>) -> actix_web::Result<impl Responder> {
     use self::schema::words::dsl::*;
     let results = web::block(move || {
-        let mut conn = pool.get().expect("couldn't get DB connection from pool");
+        let mut conn = pool.get().map_err(error::ErrorInternalServerError).unwrap();
         words.load::<Word>(&mut conn)
     })
     .await?
@@ -60,12 +61,13 @@ async fn create_word(
     new_word: web::Json<NewWord>,
 ) -> actix_web::Result<impl Responder> {
     let word = web::block(move || {
-        let mut conn = pool.get().expect("couldn't get DB connection from pool");
+        let mut conn = pool.get().map_err(error::ErrorInternalServerError).unwrap();
         diesel::insert_into(schema::words::table)
             .values(new_word.0)
             .returning(Word::as_returning())
             .get_result(&mut conn)
-            .expect("couldn't insert new word into DB")
+            .map_err(error::ErrorInternalServerError)
+            .unwrap()
     })
     .await
     .map_err(error::ErrorInternalServerError)?;
