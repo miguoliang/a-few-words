@@ -1,76 +1,78 @@
 use actix_web::{
-    error,
-    web::{self, Data, ServiceConfig},
-    Responder,
+    error, get,
+    middleware::Logger,
+    post,
+    web::{self, Json, ServiceConfig},
+    Result,
 };
-use diesel::{pg::Pg, r2d2, PgConnection, RunQueryDsl, SelectableHelper};
-use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
-use models::{NewWord, Word};
+use serde::{Deserialize, Serialize};
 use shuttle_actix_web::ShuttleActixWeb;
+use sqlx::{FromRow, PgPool};
 
-mod models;
-mod schema;
+#[get("/{id}")]
+async fn retrieve(path: web::Path<i32>, state: web::Data<AppState>) -> Result<Json<Word>> {
+    let word = sqlx::query_as("SELECT * FROM words WHERE id = $1")
+        .bind(*path)
+        .fetch_one(&state.pool)
+        .await
+        .map_err(|e| error::ErrorBadRequest(e.to_string()))?;
 
-type DbPool = r2d2::Pool<r2d2::ConnectionManager<PgConnection>>;
+    Ok(Json(word))
+}
 
-pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("./migrations");
+#[post("")]
+async fn add(word_new: web::Json<WordNew>, state: web::Data<AppState>) -> Result<Json<Word>> {
+    let word = sqlx::query_as("INSERT INTO words(word, url) VALUES ($1, $2) RETURNING id, word, url")
+        .bind(&word_new.word)
+        .bind(&word_new.url)
+        .fetch_one(&state.pool)
+        .await
+        .map_err(|e| error::ErrorBadRequest(e.to_string()))?;
 
-fn run_migrations(conn: &mut impl MigrationHarness<Pg>) {
-    conn.run_pending_migrations(MIGRATIONS)
-        .expect("Failed to run database migrations");
+    Ok(Json(word))
+}
+
+#[derive(Clone)]
+struct AppState {
+    pool: PgPool,
 }
 
 #[shuttle_runtime::main]
 async fn main(
     #[shuttle_shared_db::Postgres(
-        local_uri = "postgres://username:{secrets.PASSWORD}@localhost:5432/a-few-words"
+        local_uri = "postgres://username:password@localhost:5432/a-few-words"
     )]
-    conn_str: String,
+    pool: PgPool,
 ) -> ShuttleActixWeb<impl FnOnce(&mut ServiceConfig) + Send + Clone + 'static> {
-    let app_config = move |cfg: &mut ServiceConfig| {
-        // connect to PostgreSQL database
-        let manager = r2d2::ConnectionManager::<PgConnection>::new(conn_str);
-        let pool = r2d2::Pool::builder()
-            .build(manager)
-            .map_err(error::ErrorInternalServerError)
-            .unwrap();
-        let mut conn = pool.get().map_err(error::ErrorInternalServerError).unwrap();
-        run_migrations(&mut conn);
-        drop(conn);
-        cfg.app_data(Data::new(pool.clone()))
-            .route("/words", web::get().to(get_words))
-            .route("/words", web::post().to(create_word));
+    sqlx::migrate!()
+        .run(&pool)
+        .await
+        .expect("Failed to run migrations");
+
+    let state = web::Data::new(AppState { pool });
+
+    let config = move |cfg: &mut ServiceConfig| {
+        cfg.service(
+            web::scope("/words")
+                .wrap(Logger::default())
+                .service(retrieve)
+                .service(add)
+                .app_data(state),
+        );
     };
-    Ok(app_config.into())
+
+    Ok(config.into())
 }
 
-async fn get_words(pool: Data<DbPool>) -> actix_web::Result<impl Responder> {
-    use self::schema::words::dsl::*;
-    let results = web::block(move || {
-        let mut conn = pool.get().map_err(error::ErrorInternalServerError).unwrap();
-        words.load::<Word>(&mut conn)
-    })
-    .await?
-    .map_err(error::ErrorInternalServerError)?;
-
-    Ok(actix_web::HttpResponse::Ok().json(results))
+#[derive(Deserialize)]
+struct WordNew {
+    pub word: String,
+    pub url: Option<String>,
 }
 
-async fn create_word(
-    pool: Data<DbPool>,
-    new_word: web::Json<NewWord>,
-) -> actix_web::Result<impl Responder> {
-    let word = web::block(move || {
-        let mut conn = pool.get().map_err(error::ErrorInternalServerError).unwrap();
-        diesel::insert_into(schema::words::table)
-            .values(new_word.0)
-            .returning(Word::as_returning())
-            .get_result(&mut conn)
-            .map_err(error::ErrorInternalServerError)
-            .unwrap()
-    })
-    .await
-    .map_err(error::ErrorInternalServerError)?;
-
-    Ok(actix_web::HttpResponse::Ok().json(word))
+#[derive(Serialize, Deserialize, FromRow)]
+struct Word {
+    pub id: i32,
+    pub word: String,
+    pub url: Option<String>,
 }
