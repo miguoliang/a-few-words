@@ -8,7 +8,7 @@ use crate::schema::words;
 pub struct Word {
     pub id: i32,
     pub word: String,
-    pub meaning: String,
+    pub meaning: Option<String>,
 }
 
 #[derive(Debug, Insertable, Deserialize)]
