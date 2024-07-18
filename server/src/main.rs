@@ -9,6 +9,8 @@ use serde::{Deserialize, Serialize};
 use shuttle_actix_web::ShuttleActixWeb;
 use sqlx::{types::chrono, FromRow, PgPool};
 
+mod auth0;
+
 #[get("/{id}")]
 async fn retrieve(path: web::Path<i32>, state: web::Data<AppState>) -> Result<Json<Word>> {
     let word = sqlx::query_as("SELECT * FROM words WHERE id = $1")
