@@ -7,7 +7,7 @@ use actix_web::{
 };
 use serde::{Deserialize, Serialize};
 use shuttle_actix_web::ShuttleActixWeb;
-use sqlx::{FromRow, PgPool};
+use sqlx::{types::chrono, FromRow, PgPool};
 
 #[get("/{id}")]
 async fn retrieve(path: web::Path<i32>, state: web::Data<AppState>) -> Result<Json<Word>> {
@@ -22,9 +22,10 @@ async fn retrieve(path: web::Path<i32>, state: web::Data<AppState>) -> Result<Js
 
 #[post("")]
 async fn add(word_new: web::Json<WordNew>, state: web::Data<AppState>) -> Result<Json<Word>> {
-    let word = sqlx::query_as("INSERT INTO words(word, url) VALUES ($1, $2) RETURNING id, word, url")
+    let word = sqlx::query_as("INSERT INTO words(word, url, username) VALUES ($1, $2, $3) RETURNING id, word, url, username, created_at")
         .bind(&word_new.word)
         .bind(&word_new.url)
+        .bind(&word_new.username)
         .fetch_one(&state.pool)
         .await
         .map_err(|e| error::ErrorBadRequest(e.to_string()))?;
@@ -68,6 +69,7 @@ async fn main(
 struct WordNew {
     pub word: String,
     pub url: Option<String>,
+    pub username: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, FromRow)]
@@ -75,4 +77,6 @@ struct Word {
     pub id: i32,
     pub word: String,
     pub url: Option<String>,
+    pub username: Option<String>,
+    pub created_at: chrono::NaiveDateTime,
 }

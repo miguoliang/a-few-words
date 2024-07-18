@@ -37,7 +37,9 @@
       "scripting",
       "activeTab",
       "storage",
-      "sidePanel"
+      "sidePanel",
+      "identity",
+      "identity.email"
     ]
   }
 }
