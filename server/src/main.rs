@@ -1,15 +1,21 @@
 use actix_web::{
-    error, get,
+    error::{self},
+    get,
     middleware::Logger,
     post,
     web::{self, Json, ServiceConfig},
-    Result,
+    Error, Result,
 };
+use actix_web_httpauth::{
+    extractors::AuthenticationError, headers::www_authenticate::bearer::Bearer,
+    middleware::HttpAuthentication,
+};
+use anyhow::Context;
 use serde::{Deserialize, Serialize};
 use shuttle_actix_web::ShuttleActixWeb;
 use sqlx::{types::chrono, FromRow, PgPool};
 
-mod auth0;
+mod cognito;
 
 #[get("/{id}")]
 async fn retrieve(path: web::Path<i32>, state: web::Data<AppState>) -> Result<Json<Word>> {
@@ -38,6 +44,7 @@ async fn add(word_new: web::Json<WordNew>, state: web::Data<AppState>) -> Result
 #[derive(Clone)]
 struct AppState {
     pool: PgPool,
+    cognito_validator: cognito::CognitoValidator,
 }
 
 #[shuttle_runtime::main]
@@ -52,12 +59,36 @@ async fn main(
         .await
         .expect("Failed to run migrations");
 
-    let state = web::Data::new(AppState { pool });
+    let cognito_validator = cognito::CognitoValidator::new("us-east-1", "us-east-1_Qbzi9lvVB")
+        .await
+        .context("Failed to create Cognito validator")?;
+
+    let state = web::Data::new(AppState {
+        pool,
+        cognito_validator,
+    });
+
+    let auth = HttpAuthentication::bearer(|req, credentials| async move {
+        let token = credentials.token();
+        match req
+            .app_data::<AppState>()
+            .unwrap()
+            .cognito_validator
+            .verify_token(token)
+        {
+            Ok(_) => return Ok(req),
+            Err(_) => {
+                let ae = AuthenticationError::new(Bearer::default());
+                return Err((Error::from(ae), req));
+            }
+        }
+    });
 
     let config = move |cfg: &mut ServiceConfig| {
         cfg.service(
             web::scope("/words")
                 .wrap(Logger::default())
+                .wrap(auth)
                 .service(retrieve)
                 .service(add)
                 .app_data(state),
