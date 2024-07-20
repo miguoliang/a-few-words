@@ -59,9 +59,13 @@ async fn main(
         .await
         .expect("Failed to run migrations");
 
-    let cognito_validator = cognito::CognitoValidator::new("us-east-1", "us-east-1_Qbzi9lvVB")
-        .await
-        .context("Failed to create Cognito validator")?;
+    let cognito_validator = cognito::CognitoValidator::new(
+        "us-east-1",
+        "us-east-1_Qbzi9lvVB",
+        "5p99s5nl7nha5tfnpik3r0rb7j",
+    )
+    .await
+    .context("Failed to create Cognito validator")?;
 
     let state = web::Data::new(AppState {
         pool,
