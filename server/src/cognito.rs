@@ -72,9 +72,10 @@ async fn fetch_jwks(jwks_url: &str) -> Result<Jwks> {
     Ok(jwks)
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Claims {
     pub exp: usize,
+    pub username: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]

@@ -1,5 +1,5 @@
 import { setTokens } from "~auth-slice"
-import { persistor, store } from "~store"
+import { store } from "~store"
 
 export {}
 
@@ -15,7 +15,6 @@ export function launchWebAuthFlow() {
     encodeURIComponent(chrome.identity.getRedirectURL()) +
     "&" +
     `scope=${encodeURIComponent("openid profile email")}`
-  console.log(url)
   chrome.identity.launchWebAuthFlow(
     {
       url,
@@ -48,7 +47,6 @@ export function launchWebAuthFlow() {
         .then((response) => response.json())
         .then((tokens) => {
           // Handle tokens (access_token, id_token, etc.)
-          console.log("Tokens:", tokens)
           store?.dispatch(setTokens(tokens))
         })
         .catch((error) =>

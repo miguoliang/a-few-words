@@ -3,14 +3,16 @@ use actix_web::{
     get,
     middleware::Logger,
     post,
-    web::{self, Json, ServiceConfig},
-    Error, Result,
+    web::{self, Data, Json, ServiceConfig},
+    Error, HttpMessage, Result,
 };
 use actix_web_httpauth::{
     extractors::AuthenticationError, headers::www_authenticate::bearer::Bearer,
     middleware::HttpAuthentication,
 };
 use anyhow::Context;
+use cognito::Claims;
+use jsonwebtoken::TokenData;
 use serde::{Deserialize, Serialize};
 use shuttle_actix_web::ShuttleActixWeb;
 use sqlx::{types::chrono, FromRow, PgPool};
@@ -29,11 +31,15 @@ async fn retrieve(path: web::Path<i32>, state: web::Data<AppState>) -> Result<Js
 }
 
 #[post("")]
-async fn add(word_new: web::Json<WordNew>, state: web::Data<AppState>) -> Result<Json<Word>> {
+async fn add(
+    word_new: web::Json<WordNew>,
+    state: web::Data<AppState>,
+    claims: web::ReqData<Claims>,
+) -> Result<Json<Word>> {
     let word = sqlx::query_as("INSERT INTO words(word, url, username) VALUES ($1, $2, $3) RETURNING id, word, url, username, created_at")
         .bind(&word_new.word)
         .bind(&word_new.url)
-        .bind(&word_new.username)
+        .bind(&claims.username)
         .fetch_one(&state.pool)
         .await
         .map_err(|e| error::ErrorBadRequest(e.to_string()))?;
@@ -50,7 +56,7 @@ struct AppState {
 #[shuttle_runtime::main]
 async fn main(
     #[shuttle_shared_db::Postgres(
-        local_uri = "postgres://username:password@localhost:5432/a-few-words"
+        local_uri = "postgres://username:password@localhost:5432/a_few_words"
     )]
     pool: PgPool,
 ) -> ShuttleActixWeb<impl FnOnce(&mut ServiceConfig) + Send + Clone + 'static> {
@@ -75,15 +81,18 @@ async fn main(
     let auth = HttpAuthentication::bearer(|req, credentials| async move {
         let token = credentials.token();
         match req
-            .app_data::<AppState>()
+            .app_data::<Data<AppState>>()
             .unwrap()
             .cognito_validator
             .verify_token(token)
         {
-            Ok(_) => return Ok(req),
+            Ok(token_data) => {
+                req.extensions_mut().insert(token_data.claims);
+                Ok(req)
+            }
             Err(_) => {
                 let ae = AuthenticationError::new(Bearer::default());
-                return Err((Error::from(ae), req));
+                Err((Error::from(ae), req))
             }
         }
     });
@@ -106,7 +115,6 @@ async fn main(
 struct WordNew {
     pub word: String,
     pub url: Option<String>,
-    pub username: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, FromRow)]
