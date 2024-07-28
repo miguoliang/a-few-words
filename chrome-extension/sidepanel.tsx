@@ -1,29 +1,34 @@
-import { useStorage } from "@plasmohq/storage/hook"
+import { Provider } from "react-redux"
+
+import { PersistGate } from "@plasmohq/redux-persist/integration/react"
+
+import { launchWebAuthFlow } from "~content"
+import { persistor, store, useAppSelector } from "~store"
 
 import "~style.css"
 
-import type { SentenceList } from "~content"
-
 const SidePanel = () => {
-  const [cards, setCards] = useStorage<SentenceList>("cards", [])
-  const removeCard = (index: number) => {
-    const newCards = [...cards]
-    newCards.splice(index, 1)
-    setCards(newCards)
-  }
   return (
-    <div className="p-2 gap-2 flex flex-col">
-      {cards.map((card, index) => (
-        <details className="collapse bg-base-200" key={index}>
-          <summary className="collapse-title text-md font-medium bg-green-200">
-            {card.front}
-          </summary>
-          <div className="collapse-content">
-            <p>content</p>
-          </div>
-        </details>
-      ))}
-    </div>
+    <Provider store={store}>
+      <PersistGate loading={null} persistor={persistor}>
+        <View />
+      </PersistGate>
+    </Provider>
+  )
+}
+
+const View = () => {
+  const accessToken = useAppSelector((state) => state.access_token)
+  return (
+    <>
+      <button
+        className="m-5 bg-black text-white"
+        onClick={() => launchWebAuthFlow()}>
+        Click to authenticate
+      </button>
+      {accessToken && <p>Access token: {accessToken}</p>}
+      {!accessToken && <p>Not authenticated</p>}
+    </>
   )
 }
 

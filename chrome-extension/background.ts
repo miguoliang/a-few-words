@@ -1,5 +1,4 @@
-import { Storage } from "@plasmohq/storage"
-import type { SentenceList } from "~content"
+import type { Word } from "~content"
 
 export {}
 
@@ -23,11 +22,29 @@ chrome.contextMenus.onClicked.addListener((item, tab) => {
       },
       async (selectedText) => {
         const text = selectedText[0].result
-        const storage = new Storage()
-        const cards = await storage.get<SentenceList>("cards") || []
-        cards.push({ front: text, back: "" })
-        await storage.set("cards", cards)
+        if (!text) return
+        const word: Word = { word: text }
+        createWord(word)
+          .then((res) => {
+            console.log(res)
+            if (res.ok) {
+              console.log("success")
+            } else {
+              console.error(res.status)
+            }
+          })
+          .catch((error) => {
+            console.error(error)
+          })
       }
     )
   }
 })
+
+async function createWord(word: Word) {
+  return fetch("http://localhost:8000/words", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(word)
+  })
+}

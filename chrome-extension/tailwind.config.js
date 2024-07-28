@@ -3,7 +3,5 @@ module.exports = {
   mode: "jit",
   darkMode: "class",
   content: ["./**/*.tsx"],
-  plugins: [
-    require('daisyui'),
-  ]
+  plugins: []
 }
