@@ -3,7 +3,7 @@ use actix_web::{
     get,
     middleware::Logger,
     post,
-    web::{self, Data, Json, ServiceConfig},
+    web::{self, Data, Json, Query, ServiceConfig},
     Error, HttpMessage, Result,
 };
 use actix_web_httpauth::{
@@ -12,10 +12,10 @@ use actix_web_httpauth::{
 };
 use anyhow::Context;
 use cognito::Claims;
-use jsonwebtoken::TokenData;
 use serde::{Deserialize, Serialize};
 use shuttle_actix_web::ShuttleActixWeb;
 use sqlx::{types::chrono, FromRow, PgPool};
+use validator::Validate;
 
 mod cognito;
 
@@ -45,6 +45,40 @@ async fn add(
         .map_err(|e| error::ErrorBadRequest(e.to_string()))?;
 
     Ok(Json(word))
+}
+
+#[derive(Deserialize, Validate)]
+struct Offset {
+    #[validate(range(min = 0))]
+    offset: Option<i32>,
+    #[validate(range(min = 1, max = 100))]
+    size: Option<i32>,
+}
+
+#[get("")]
+async fn list(
+    state: web::Data<AppState>,
+    claims: web::ReqData<Claims>,
+    query: Query<Offset>,
+) -> Result<Json<Vec<Word>>> {
+    if query.validate().is_err() {
+        return Err(error::ErrorBadRequest(
+            "Invalid query parameters".to_string(),
+        ));
+    }
+
+    let bind = sqlx::query_as(
+        "SELECT * FROM words WHERE username = $1 ORDER BY created_at DESC OFFSET $2 LIMIT $3",
+    )
+    .bind(&claims.username)
+    .bind(query.offset.unwrap_or(0))
+    .bind(query.size.unwrap_or(10));
+    let words = bind
+        .fetch_all(&state.pool)
+        .await
+        .map_err(|e| error::ErrorInternalServerError(e.to_string()))?;
+
+    Ok(Json(words))
 }
 
 #[derive(Clone)]
@@ -104,6 +138,7 @@ async fn main(
                 .wrap(auth)
                 .service(retrieve)
                 .service(add)
+                .service(list)
                 .app_data(state),
         );
     };

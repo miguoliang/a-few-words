@@ -16,3 +16,4 @@ reqwest = { version = "0.12.5", features = ["json"] }
 actix-web-httpauth = "0.8.2"
 serde_json = "1.0.120"
 anyhow = "1.0.86"
+validator = { version = "0.18.1", features = ["derive"] }
