@@ -1,11 +1,14 @@
-import { Provider } from "react-redux";
-import { PersistGate } from "@plasmohq/redux-persist/integration/react";
-import { launchWebAuthFlow } from "~content";
-import { persistor, store, useAppDispatch, useAppSelector } from "~store";
-import "~style.css";
-import { useEffect } from "react";
-import { setLogout } from "~auth-slice";
-import { setWords } from "~words-slice";
+import { Provider } from "react-redux"
+
+import { PersistGate } from "@plasmohq/redux-persist/integration/react"
+
+import { launchWebAuthFlow } from "~content"
+import { persistor, store, useAppDispatch, useAppSelector } from "~store"
+import { fetchWords } from "~content"
+
+import "~style.css"
+
+import { useEffect } from "react"
 
 const SidePanel = () => {
   return (
@@ -14,75 +17,49 @@ const SidePanel = () => {
         <AuthenticatedView />
       </PersistGate>
     </Provider>
-  );
-};
+  )
+}
 
 const AuthenticatedView = () => {
-  const accessToken = useAppSelector((state) => state.auth.access_token);
-  const dispatch = useAppDispatch();
+  const accessToken = useAppSelector((state) => state.auth.access_token)
+  const dispatch = useAppDispatch()
 
   useEffect(() => {
-    if (!accessToken) return;
-
-    const fetchWords = async () => {
-      try {
-        const response = await fetch("http://localhost:8000/words", {
-          headers: {
-            Authorization: `Bearer ${store.getState().auth.access_token}`,
-          },
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          dispatch(setWords(data));
-        } else if (response.status === 401) {
-          dispatch(setLogout());
-        } else {
-          console.error(`Error: ${response.statusText} (${response.status})`);
-        }
-      } catch (error) {
-        console.error(`Fetch error: ${error.message}`);
-      }
-    };
-
-    fetchWords();
-  }, [accessToken, dispatch]);
+    if (!accessToken) return
+    fetchWords()
+  }, [accessToken, dispatch])
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col p-2">
       {!accessToken && (
         <button
           className="m-5 bg-black text-white"
-          onClick={() => launchWebAuthFlow()}
-        >
+          onClick={() => launchWebAuthFlow()}>
           Click to authenticate
         </button>
       )}
       <WordList />
     </div>
-  );
-};
+  )
+}
 
 const WordList = () => {
-  const words = useAppSelector((state) => state.words.words);
-  console.log("Words in state:", words); // Debug log
-
+  const words = useAppSelector((state) => state.words.words)
+  console.log(words)
   return (
     <div className="flex flex-col">
       {words?.length === 0 && <div>No words saved yet</div>}
-      {words?.map((word, index) => (
-        <WordCell key={index} word={word.word} />
-      ))}
+      {words?.map((word, index) => <WordCell key={index} word={word.word} />)}
     </div>
-  );
-};
+  )
+}
 
 interface WordProps {
-  word: string;
+  word: string
 }
 
 const WordCell = ({ word }: WordProps) => {
-  return <div>{word}</div>;
-};
+  return <div>{word}</div>
+}
 
-export default SidePanel;
+export default SidePanel

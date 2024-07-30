@@ -1,5 +1,4 @@
-import type { Word } from "~content"
-import { store } from "~store"
+import { createWord, type Word } from "~content"
 
 export {}
 
@@ -25,29 +24,8 @@ chrome.contextMenus.onClicked.addListener((item, tab) => {
         const text = selectedText[0].result
         if (!text) return
         const word: Word = { word: text }
-        createWord(word)
-          .then((res) => {
-            if (res.ok) {
-              console.log("success")
-            } else {
-              console.error(res.status)
-            }
-          })
-          .catch((error) => {
-            console.error(error)
-          })
+        await createWord(word)
       }
     )
   }
 })
-
-async function createWord(word: Word) {
-  return fetch("http://localhost:8000/words", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: "Bearer " + store?.getState().auth.access_token
-    },
-    body: JSON.stringify(word)
-  })
-}

@@ -1,5 +1,6 @@
-import { setTokens } from "~auth-slice"
+import { setLogout, setTokens } from "~auth-slice"
 import { store } from "~store"
+import { setWords } from "~words-slice"
 
 export {}
 
@@ -54,6 +55,43 @@ export function launchWebAuthFlow() {
         )
     }
   )
+}
+
+export const fetchWords = async () => {
+  return fetch("http://localhost:8000/words", {
+    headers: {
+      Authorization: `Bearer ${store.getState().auth.access_token}`
+    }
+  }).then(async (response) => {
+    if (response.ok) {
+      const data = await response.json()
+      store.dispatch(setWords(data))
+    } else if (response.status === 401) {
+      store.dispatch(setLogout())
+    } else {
+      console.error(`Error: ${response.statusText} (${response.status})`)
+    }
+  })
+}
+
+export const createWord = async (word: Word) => {
+  return fetch("http://localhost:8000/words", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: "Bearer " + store?.getState().auth.access_token
+    },
+    body: JSON.stringify(word)
+  }).then(async (response) => {
+    if (response.ok) {
+      const words = store.getState().words.words
+      store.dispatch(setWords([word, ...words]))
+    } else if (response.status === 401) {
+      store.dispatch(setLogout())
+    } else {
+      console.error(`Error: ${response.statusText} (${response.status})`)
+    }
+  })
 }
 
 export type Word = {
