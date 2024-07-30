@@ -4,8 +4,6 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone)]
 pub struct CognitoValidator {
-    region: String,
-    user_pool_id: String,
     issuer: String,
     client_id: String,
     jwks: Jwks,
@@ -22,8 +20,6 @@ impl CognitoValidator {
             .await
             .context("Failed to fetch JWKS")?;
         Ok(Self {
-            region: region.to_string(),
-            user_pool_id: user_pool_id.to_string(),
             issuer,
             client_id: client_id.to_string(),
             jwks,
@@ -80,12 +76,9 @@ pub struct Claims {
 
 #[derive(Debug, Clone, Deserialize)]
 struct Jwk {
-    alg: String,
     e: String,
     kid: String,
-    kty: String,
     n: String,
-    r#use: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
