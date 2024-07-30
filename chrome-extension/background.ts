@@ -24,7 +24,7 @@ chrome.contextMenus.onClicked.addListener((item, tab) => {
       async (selectedText) => {
         const text = selectedText[0].result
         if (!text) return
-        const word: Word = { word: text, username: store?.getState().username }
+        const word: Word = { word: text }
         createWord(word)
           .then((res) => {
             if (res.ok) {
@@ -46,7 +46,7 @@ async function createWord(word: Word) {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: "Bearer " + store?.getState().access_token
+      Authorization: "Bearer " + store?.getState().auth.access_token
     },
     body: JSON.stringify(word)
   })

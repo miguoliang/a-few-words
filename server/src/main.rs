@@ -157,6 +157,5 @@ struct Word {
     pub id: i32,
     pub word: String,
     pub url: Option<String>,
-    pub username: Option<String>,
     pub created_at: chrono::NaiveDateTime,
 }

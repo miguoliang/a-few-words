@@ -5,7 +5,6 @@ export interface AuthState {
   id_token?: string
   refresh_token?: string
   expires_in?: number
-  username?: string
 }
 
 const authSlice = createSlice({
@@ -17,10 +16,16 @@ const authSlice = createSlice({
       state.id_token = action.payload.id_token
       state.refresh_token = action.payload.refresh_token
       state.expires_in = action.payload.expires_in
+    },
+    setLogout: (state) => {
+      state.access_token = undefined
+      state.id_token = undefined
+      state.refresh_token = undefined
+      state.expires_in = undefined
     }
   }
 })
 
-export const { setTokens } = authSlice.actions
+export const { setTokens, setLogout } = authSlice.actions
 
 export default authSlice.reducer
