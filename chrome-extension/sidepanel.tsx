@@ -2,9 +2,8 @@ import { Provider } from "react-redux"
 
 import { PersistGate } from "@plasmohq/redux-persist/integration/react"
 
-import { launchWebAuthFlow } from "~content"
+import { fetchWords, launchWebAuthFlow } from "~content"
 import { persistor, store, useAppDispatch, useAppSelector } from "~store"
-import { fetchWords } from "~content"
 
 import "~style.css"
 

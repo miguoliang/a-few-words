@@ -5,5 +5,9 @@
         "dotenvy",
         "plasmo",
         "tailwindcss"
-    ]
+    ],
+    "sonarlint.connectedMode.project": {
+        "connectionId": "miguoliang",
+        "projectKey": "miguoliang_a-few-words"
+    }
 }

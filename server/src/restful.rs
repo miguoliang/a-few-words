@@ -98,17 +98,19 @@ pub async fn update(
 mod tests {
 
     use super::*;
-    use actix_web::{http::StatusCode, test, web, App};
+    use actix_web::{http::StatusCode, test, App};
 
     #[actix_web::test]
     async fn test_create_word() {
         let app = test::init_service(App::new().service(add)).await;
         let req = test::TestRequest::post()
             .uri("/words")
-            .set_json(&WordNew {
+            .set_json(WordNew {
                 word: "test".to_string(),
                 url: None,
             })
             .to_request();
+        let resp = test::call_service(&app, req).await;
+        assert_eq!(resp.status(), StatusCode::OK);
     }
 }
