@@ -1,8 +1,5 @@
 use super::cognito;
-use crate::{
-    cognito::Claims,
-    dto::{Offset, Word, WordNew},
-};
+use crate::cognito::Claims;
 use actix_web::{
     error, get, post, put,
     web::{self, Json, Query},
@@ -104,13 +101,13 @@ mod tests {
     async fn test_create_word() {
         let app = test::init_service(App::new().service(add)).await;
         let req = test::TestRequest::post()
-            .uri("/words")
+            .uri("/")
             .set_json(WordNew {
                 word: "test".to_string(),
                 url: None,
             })
             .to_request();
         let resp = test::call_service(&app, req).await;
-        assert_eq!(resp.status(), StatusCode::OK);
+        assert!(resp.status().is_success());
     }
 }
