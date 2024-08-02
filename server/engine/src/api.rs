@@ -54,6 +54,8 @@ pub async fn delete_word(id: i32, username: &str, pool: &PgPool) -> Result<()> {
 #[cfg(test)]
 mod tests {
     
+    use crate::setup_database;
+
     use super::*;
     use sqlx::postgres::PgPoolOptions;
 
@@ -64,10 +66,7 @@ mod tests {
             .connect(&connection_string)
             .await
             .unwrap();
-        sqlx::migrate!("./migrations")
-            .run(&pool)
-            .await
-            .expect("Failed to run migrations");
+        setup_database(&pool).await.unwrap();
         pool       
     }
 
