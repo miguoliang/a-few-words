@@ -5,8 +5,12 @@ use validator::Validate;
 
 static NOT_BLANK: Lazy<Regex> = Lazy::new(|| Regex::new(r"^\S+$").unwrap());
 
-static USERNAME_LIKE: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[a-zA-Z0-9]{3,100}$").unwrap());
+pub static USERNAME_LIKE: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[a-zA-Z0-9]{3,100}$").unwrap());
 
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Validate)]
 pub struct NewWord {
     #[validate(length(min = 1, max = 100), regex(path = *NOT_BLANK))]
@@ -17,6 +21,7 @@ pub struct NewWord {
     pub username: String,
 }
 
+#[cfg_attr(feature = "serde", derive(Deserialize))]
 #[derive(Validate)]
 pub struct Offset {
     #[validate(range(min = 0))]
@@ -25,6 +30,7 @@ pub struct Offset {
     pub size: Option<i32>,
 }
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(FromRow, PartialEq, Debug)]
 pub struct Word {
     pub id: i32,

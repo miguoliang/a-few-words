@@ -8,12 +8,12 @@ use actix_web_httpauth::{
     middleware::HttpAuthentication,
 };
 use anyhow::Context;
+use engine::setup_database;
 use restful::{add, list, retrieve, AppState};
 use shuttle_actix_web::ShuttleActixWeb;
 use sqlx::PgPool;
 
 mod cognito;
-mod dto;
 mod restful;
 
 #[shuttle_runtime::main]
@@ -23,10 +23,9 @@ async fn main(
     )]
     pool: PgPool,
 ) -> ShuttleActixWeb<impl FnOnce(&mut ServiceConfig) + Send + Clone + 'static> {
-    sqlx::migrate!()
-        .run(&pool)
+    setup_database(&pool)
         .await
-        .expect("Failed to run migrations");
+        .expect("Failed to setup database");
 
     let cognito_validator = cognito::CognitoValidator::new(
         "us-east-1",

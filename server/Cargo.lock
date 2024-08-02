@@ -1018,6 +1018,7 @@ dependencies = [
  "lazy_static",
  "once_cell",
  "regex",
+ "serde",
  "sqlx",
  "testcontainers",
  "tokio",
