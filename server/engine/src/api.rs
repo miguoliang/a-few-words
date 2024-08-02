@@ -48,25 +48,59 @@ pub async fn delete_word(id: i32, pool: &PgPool) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use std::{sync::Arc, thread::sleep};
+    use std::sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    };
 
     use super::*;
-    use once_cell::sync::{Lazy, OnceCell};
+    use once_cell::sync::Lazy;
     use sqlx::postgres::PgPoolOptions;
-    use std::time;
+    use std::sync::Mutex as StdMutex;
     use testcontainers::{
         core::WaitFor, runners::AsyncRunner, ContainerAsync, GenericImage, ImageExt,
     };
-    use tokio::sync::Mutex;
+    use tokio::{runtime::Runtime, sync::Mutex};
 
     #[derive(Debug)]
-    struct TestResources {
-        container: Mutex<Option<ContainerAsync<GenericImage>>>,
-        pub connection_pool: Arc<PgPool>,
+    struct TestRuntime {
+        container: Option<ContainerAsync<GenericImage>>,
+        pub connection_pool: Option<Arc<PgPool>>,
     }
 
-    impl TestResources {
-        async fn new() -> Self {
+    impl TestRuntime {
+        async fn get_connection_pool(&self) -> Arc<PgPool> {
+            self.connection_pool
+                .as_ref()
+                .expect("Connection pool not initialized")
+                .clone()
+        }
+    }
+
+    static TEST_RUNTIME: Lazy<Arc<Mutex<TestRuntime>>> = Lazy::new(|| {
+        Arc::new(Mutex::new(TestRuntime {
+            container: None,
+            connection_pool: None,
+        }))
+    });
+
+    // Atomic flag to check if the resource is initialized
+    static INITIALIZED: AtomicBool = AtomicBool::new(false);
+
+    // Mutex to guard initialization
+    static INITIALIZATION_MUTEX: StdMutex<()> = StdMutex::new(());
+
+    async fn initialize_test_runtime() {
+        // Check if already initialized
+        if INITIALIZED.load(Ordering::Relaxed) {
+            return;
+        }
+
+        // Lock the initialization mutex to ensure only one thread can initialize
+        let _guard = INITIALIZATION_MUTEX.lock().unwrap();
+
+        // Double-check initialization to avoid race conditions
+        if !INITIALIZED.load(Ordering::Relaxed) {
             let container = GenericImage::new("postgres", "16-alpine")
                 .with_wait_for(WaitFor::message_on_stdout(
                     "database system is ready to accept connections",
@@ -78,67 +112,61 @@ mod tests {
                 .await
                 .unwrap();
 
-            let host = container.get_host().await.unwrap().to_string();
-            let port = container.get_host_port_ipv4(5432).await.unwrap();
-            let connection_string =
-                format!("postgres://username:password@{}:{}/a_few_words", host, port);
+            let connection_string = format!(
+                "postgres://username:password@{}:{}/a_few_words",
+                container.get_host().await.unwrap(),
+                container.get_host_port_ipv4(5432).await.unwrap()
+            );
 
-            let p = loop {
-                if let Ok(pc) = PgPoolOptions::new()
-                    .max_connections(1)
+            let pool = loop {
+                match PgPoolOptions::new()
+                    .max_connections(5)
                     .connect(&connection_string)
                     .await
                 {
-                    break pc;
-                }
-                sleep(time::Duration::from_millis(100));
+                    Ok(pool) => break pool,
+                    Err(_) => {
+                        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+                        continue;
+                    }
+                };
             };
 
-            sqlx::migrate!()
-                .run(&p)
+            sqlx::migrate!("./migrations")
+                .run(&pool)
                 .await
                 .expect("Failed to run migrations");
 
-            Self {
-                container: Mutex::new(Some(container)),
-                connection_pool: Arc::new(p),
-            }
-        }
+            let mut test_runtime = TEST_RUNTIME.lock().await;
+            test_runtime.container = Some(container);
+            test_runtime.connection_pool = Some(Arc::new(pool));
 
-        async fn cleanup(&self) {
-            println!("Cleaning up test resources");
-            if let Some(container) = self.container.lock().await.take() {
-                println!("Stopping and removing container");
-                container.stop().await.unwrap();
-                container.rm().await.unwrap();
-            }
-        }
-    }
-
-    static TEST_RESOURCES: OnceCell<Arc<TestResources>> = OnceCell::new();
-    static TOKIO_RUNTIME: Lazy<tokio::runtime::Runtime> =
-        Lazy::new(|| tokio::runtime::Runtime::new().unwrap());
-
-    #[ctor::ctor]
-    fn setup() {
-        TOKIO_RUNTIME.block_on(async {
-            let resources = TestResources::new().await;
-            TEST_RESOURCES.set(Arc::new(resources)).unwrap();
-        });
-    }
-    #[ctor::dtor]
-    fn teardown() {
-        if let Some(resources) = TEST_RESOURCES.get() {
-            TOKIO_RUNTIME.block_on(resources.cleanup());
+            INITIALIZED.store(true, Ordering::Relaxed);
         }
     }
 
     async fn get_connection_pool() -> Arc<PgPool> {
-        Arc::clone(&TEST_RESOURCES.get().unwrap().connection_pool)
+        let test_runtime = TEST_RUNTIME.lock().await;
+        test_runtime.get_connection_pool().await
+    }
+
+    #[ctor::dtor]
+    fn cleanup() {
+        println!("Cleaning up");
+        let runtime = Runtime::new().unwrap();
+        runtime.block_on(async {
+            let mut test_runtime = TEST_RUNTIME.lock().await;
+            if let Some(container) = test_runtime.container.take() {
+                container.stop().await.unwrap();
+                container.rm().await.unwrap();
+            }
+        });
     }
 
     #[tokio::test]
     async fn test_create_word() {
+        initialize_test_runtime().await;
+
         let pool = get_connection_pool().await;
         let new_word = NewWord {
             word: "test_create_word".to_string(),
@@ -153,6 +181,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_word() {
+        initialize_test_runtime().await;
+
         let pool = get_connection_pool().await;
         let new_word = NewWord {
             word: "test_get_word".to_string(),
@@ -166,6 +196,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_list_words() {
+        initialize_test_runtime().await;
         let pool = get_connection_pool().await;
         let new_word = NewWord {
             word: "test_list_words".to_string(),
