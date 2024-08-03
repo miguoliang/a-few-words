@@ -52,14 +52,14 @@ pub async fn delete_word(id: i32, username: &str, pool: &PgPool) -> Result<()> {
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     
     use crate::setup_database;
 
     use super::*;
     use sqlx::postgres::PgPoolOptions;
 
-    async fn get_connection_pool() -> PgPool {
+    pub async fn get_connection_pool() -> PgPool {
         let connection_string = "postgres://username:password@localhost:5432/a_few_words";
         let pool = PgPoolOptions::new()
             .max_connections(5)
