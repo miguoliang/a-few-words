@@ -1,5 +1,7 @@
+use actix_web::{dev::ServiceRequest, HttpMessage};
+use actix_web_httpauth::extractors::bearer::BearerAuth;
 use anyhow::{Context, Result};
-use jsonwebtoken::{decode, decode_header, DecodingKey, TokenData, Validation};
+use jsonwebtoken::{decode, decode_header, DecodingKey, Validation};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone)]
@@ -26,10 +28,20 @@ impl CognitoValidator {
         })
     }
 
-    pub fn verify_token(&self, token: &str) -> Result<TokenData<Claims>> {
+    pub async fn validator(
+        &self,
+        req: ServiceRequest,
+        credentials: BearerAuth,
+    ) -> Result<ServiceRequest, (actix_web::Error, ServiceRequest)> {
+        
+    }
+
+    pub fn validate_token(&self, token: &str) -> Result<Claims> {
         // Decode the header to get the key id (kid)
-        let header = decode_header(token).context("Failed to decode JWT header")?;
-        let kid = header.kid.context("Missing 'kid' in JWT header")?;
+        let header = decode_header(token)
+            .context("Failed to decode JWT header")
+            .unwrap();
+        let kid = header.kid.context("Missing 'kid' in JWT header").unwrap();
         let alg = header.alg;
 
         // Find the corresponding JWK
@@ -38,11 +50,13 @@ impl CognitoValidator {
             .keys
             .iter()
             .find(|&key| key.kid == kid)
-            .context("No matching JWK found for 'kid'")?;
+            .context("No matching JWK found for 'kid'")
+            .unwrap();
 
         // Convert the JWK to a decoding key
         let decoding_key = DecodingKey::from_rsa_components(&jwk.n, &jwk.e)
-            .context("Failed to create decoding key from JWK")?;
+            .context("Failed to create decoding key from JWK")
+            .unwrap();
 
         // Define validation criteria
         let mut validation = Validation::new(alg);
@@ -51,9 +65,10 @@ impl CognitoValidator {
 
         // Decode and validate the token
         let token_data = decode::<Claims>(token, &decoding_key, &validation)
-            .context("Failed to decode and validate JWT")?;
+            .context("Failed to decode and validate JWT")
+            .unwrap();
 
-        Ok(token_data)
+        Ok(token_data.claims)
     }
 }
 
@@ -102,7 +117,6 @@ mod tests {
 
         let token = "eyJraWQiOiJzTEY0dDBVb05QZmNDY1J1QXZENHVRRWx2bGxVWndBR1I3S0hLVVhpM3pFPSIsImFsZyI6IlJTMjU2In0.eyJzdWIiOiJkNzU1OGQ0Yi0zNGM1LTQyZTEtODVlMi0zOTRhNmFlMDNjZDYiLCJpc3MiOiJodHRwczpcL1wvY29nbml0by1pZHAudXMtZWFzdC0xLmFtYXpvbmF3cy5jb21cL3VzLWVhc3QtMV9RYnppOWx2VkIiLCJ2ZXJzaW9uIjoyLCJjbGllbnRfaWQiOiI1cDk5czVubDduaGE1dGZucGlrM3IwcmI3aiIsIm9yaWdpbl9qdGkiOiI5ZTM2NjhlNC1mYzQzLTQxNTktYThlMi1mZDViNzEyNDgzYjMiLCJ0b2tlbl91c2UiOiJhY2Nlc3MiLCJzY29wZSI6ImF3cy5jb2duaXRvLnNpZ25pbi51c2VyLmFkbWluIG9wZW5pZCBwcm9maWxlIiwiYXV0aF90aW1lIjoxNzIxNDYyNjQzLCJleHAiOjE3MjE0NjYyNDMsImlhdCI6MTcyMTQ2MjY0MywianRpIjoiNjIxYTcyNWEtMWZiZC00NzIyLTg4YzQtZDk4NTBlYWUwNzcwIiwidXNlcm5hbWUiOiJtaWd1b2xpYW5nIn0.rVtHAWfpZr5-oIswCHbpHGeUzAzxQwFbgIjDEjAmA7tvaRDticn95n1amWt0B_946EgN_HyTMkQ6YRX1Muifu15Q60Y3yxDcZ0qG2UAMqthgf-XmyPPd4l9BfadufDzxDvGLan4TC81_OAZQyW6tui7_lQwAI71vf2DNcJQMuXJJkzFSftX0dQURs3mi9Uzn6kf44IWj_RLKHkJDFuBmiOuwENx2AvzGHla9J-VHDmv29Qr63NN6o2Squ1RiRmLmO0UTsnUuqlB1bVf2AE47ZsneISFCPbbbmJSH7P7qYYi35_wEDjCLd2B53yXrSOco0WRFcFlXdprfh2KAu2mIgg";
 
-        let result = validator.verify_token(token);
-        assert!(result.is_ok());
+        assert!(validator.validate_token(token).is_ok());
     }
 }

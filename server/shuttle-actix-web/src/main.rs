@@ -1,10 +1,12 @@
 use actix_web::{
+    dev::ServiceRequest,
     middleware::Logger,
     web::{self, Data, ServiceConfig},
-    Error, HttpMessage,
+    HttpMessage,
 };
 use actix_web_httpauth::{
-    extractors::AuthenticationError, headers::www_authenticate::bearer::Bearer,
+    extractors::{bearer::BearerAuth, AuthenticationError},
+    headers::www_authenticate::bearer::Bearer,
     middleware::HttpAuthentication,
 };
 use anyhow::Context;
@@ -35,41 +37,42 @@ async fn main(
     .await
     .context("Failed to create Cognito validator")?;
 
-    let state = Data::new(AppState {
-        pool,
-        cognito_validator,
-    });
-
-    let auth = HttpAuthentication::bearer(|req, credentials| async move {
-        let token = credentials.token();
-        match req
-            .app_data::<Data<AppState>>()
-            .unwrap()
-            .cognito_validator
-            .verify_token(token)
-        {
-            Ok(token_data) => {
-                req.extensions_mut().insert(token_data.claims);
-                Ok(req)
-            }
-            Err(_) => {
-                let ae = AuthenticationError::new(Bearer::default());
-                Err((Error::from(ae), req))
-            }
-        }
-    });
-
     let config = move |cfg: &mut ServiceConfig| {
         cfg.service(
             web::scope("/words")
                 .wrap(Logger::default())
-                .wrap(auth)
+                .wrap(HttpAuthentication::bearer(validator))
                 .service(retrieve)
                 .service(add)
                 .service(list)
-                .app_data(state),
+                .app_data(Data::new(AppState {
+                    pool,
+                    cognito_validator,
+                })),
         );
     };
 
     Ok(config.into())
+}
+
+async fn validator(
+    req: ServiceRequest,
+    credentials: BearerAuth,
+) -> Result<ServiceRequest, (actix_web::Error, ServiceRequest)> {
+    let cognito_validator = req
+        .app_data::<Data<AppState>>()
+        .unwrap()
+        .cognito_validator
+        .clone();
+    let token = credentials.token();
+    match cognito_validator.validate_token(token) {
+        Ok(claims) => {
+            req.extensions_mut().insert(claims);
+            Ok(req)
+        }
+        Err(_) => {
+            let ae = AuthenticationError::new(Bearer::default());
+            Err((actix_web::Error::from(ae), req))
+        }
+    }
 }
