@@ -34,7 +34,6 @@ pub async fn add(
     state: web::Data<AppState>,
     claims: web::ReqData<Claims>,
 ) -> Result<Json<Word>> {
-    println!("claims: {:?}", claims);
     let new_word = NewWord {
         word: word_new.word.clone(),
         url: word_new.url.clone(),
@@ -79,6 +78,7 @@ mod tests {
     use anyhow::Result;
     use engine::setup_database;
     use sqlx::postgres::PgPoolOptions;
+    use web::Data;
 
     async fn get_connection_pool() -> PgPool {
         let connection_string = "postgres://username:password@localhost:5432/a_few_words";
@@ -113,7 +113,7 @@ mod tests {
     async fn test_create_word_api() {
         let app = test::init_service(
             App::new()
-                .app_data(create_mock_app_state())
+                .app_data(Data::new(create_mock_app_state().await))
                 .wrap(HttpAuthentication::bearer(validator))
                 .service(add),
         )
