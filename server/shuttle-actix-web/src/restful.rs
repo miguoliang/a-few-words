@@ -24,7 +24,7 @@ pub async fn retrieve(
     claims: web::ReqData<Claims>,
     state: web::Data<AppState>,
 ) -> Result<Json<Word>> {
-    let word = engine::api::get_word(path.into_inner(), &claims.username, &*state.pool)
+    let word = engine::api::get_word(path.into_inner(), &claims.username, &state.pool)
         .await
         .map_err(engine::types::Error::into_actix_error)?;
     Ok(Json(word))
@@ -41,7 +41,7 @@ pub async fn add(
         url: word_new.url.clone(),
         username: claims.username.clone(),
     };
-    let word = engine::api::create_word(new_word, &*state.pool)
+    let word = engine::api::create_word(new_word, &state.pool)
         .await
         .map_err(engine::types::Error::into_actix_error)?;
     Ok(Json(word))
@@ -53,7 +53,7 @@ pub async fn list(
     claims: web::ReqData<Claims>,
     query: Query<Offset>,
 ) -> Result<Json<Vec<Word>>> {
-    let words = engine::api::list_words(&claims.username, query.into_inner(), &*state.pool)
+    let words = engine::api::list_words(&claims.username, query.into_inner(), &state.pool)
         .await
         .map_err(engine::types::Error::into_actix_error)?;
     Ok(Json(words))
@@ -65,7 +65,7 @@ pub async fn delete(
     claims: web::ReqData<Claims>,
     path: web::Path<i32>,
 ) -> Result<impl Responder> {
-    engine::api::delete_word(path.into_inner(), &claims.username, &*state.pool)
+    engine::api::delete_word(path.into_inner(), &claims.username, &state.pool)
         .await
         .map_err(engine::types::Error::into_actix_error)?;
     Ok(actix_web::HttpResponse::NoContent().finish())
@@ -85,7 +85,7 @@ mod tests {
         let connection_string = "postgres://username:password@localhost:5432/a_few_words";
         let pool = PgPoolOptions::new()
             .max_connections(5)
-            .connect(&connection_string)
+            .connect(connection_string)
             .await
             .unwrap();
         setup_database(&pool).await.unwrap();
@@ -203,7 +203,7 @@ mod tests {
             resp.status()
         );
         let resp: Vec<Word> = test::read_body_json(resp).await;
-        assert!(resp.len() > 0, "No words returned");
+        assert!(!resp.is_empty(), "No words returned");
         assert!(
             resp.iter().any(|w| w.word == "test_list_words_api"),
             "Word not found"

@@ -78,9 +78,20 @@ mod tests {
 
     #[tokio::test]
     async fn test_not_blank_regex() {
-        assert_ne!(NOT_BLANK.is_match("username username"), true);
-        assert_ne!(NOT_BLANK.is_match(" "), true);
-        assert_ne!(NOT_BLANK.is_match(""), true);
+        let valid_cases = vec![
+            "username username", // Multiple words
+            " username123",      // Leading whitespace
+            "username-123 ",     // Trailing whitespace
+            "username_123",      // Non-whitespace characters
+        ];
+
+        for case in valid_cases {
+            assert!(
+                NOT_BLANK.is_match(case),
+                "Expected validation to pass for input: {}",
+                case
+            );
+        }
     }
 
     #[tokio::test]

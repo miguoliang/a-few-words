@@ -61,7 +61,7 @@ pub mod tests {
         let connection_string = "postgres://username:password@localhost:5432/a_few_words";
         let pool = PgPoolOptions::new()
             .max_connections(5)
-            .connect(&connection_string)
+            .connect(connection_string)
             .await
             .unwrap();
         setup_database(&pool).await.unwrap();
