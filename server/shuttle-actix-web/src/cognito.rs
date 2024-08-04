@@ -28,14 +28,6 @@ impl CognitoValidator {
         })
     }
 
-    pub async fn validator(
-        &self,
-        req: ServiceRequest,
-        credentials: BearerAuth,
-    ) -> Result<ServiceRequest, (actix_web::Error, ServiceRequest)> {
-        
-    }
-
     pub fn validate_token(&self, token: &str) -> Result<Claims> {
         // Decode the header to get the key id (kid)
         let header = decode_header(token)
