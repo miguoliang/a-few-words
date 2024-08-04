@@ -845,12 +845,12 @@ dependencies = [
 name = "engine"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "ctor",
  "once_cell",
  "regex",
  "serde",
  "sqlx",
+ "thiserror",
  "tokio",
  "validator",
 ]

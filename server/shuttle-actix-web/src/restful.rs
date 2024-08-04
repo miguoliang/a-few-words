@@ -130,4 +130,105 @@ mod tests {
         let resp = test::call_service(&app, req).await;
         assert!(resp.status().is_success(), "Response Status Code: {:?}", resp.status());
     }
+
+    #[actix_web::test]
+    async fn test_retrieve_word_api() {
+        let app = test::init_service(
+            App::new()
+                .app_data(Data::new(create_mock_app_state().await))
+                .wrap(HttpAuthentication::bearer(validator))
+                .service(retrieve)
+                .service(add),
+        )
+        .await;
+
+        let req = test::TestRequest::post()
+            .uri("/api/v1/words")
+            .set_json(NewWord {
+                word: "test_retrieve_word_api".to_string(),
+                url: None,
+                username: "test".to_string(),
+            })
+            .insert_header(("Authorization", "Bearer test"))
+            .to_request();
+        let word: Word = test::call_and_read_body_json(&app, req).await;
+
+        let req = test::TestRequest::get()
+            .uri(format!("/api/v1/words/{}", word.id).as_str())
+            .insert_header(("Authorization", "Bearer test"))
+            .to_request();
+        let resp = test::call_service(&app, req).await;
+        assert!(resp.status().is_success(), "Response Status Code: {:?}", resp.status());
+    }
+
+    #[actix_web::test]
+    async fn test_list_words_api() {
+        let app = test::init_service(
+            App::new()
+                .app_data(Data::new(create_mock_app_state().await))
+                .wrap(HttpAuthentication::bearer(validator))
+                .service(list)
+                .service(add),
+        )
+        .await;
+
+        let req = test::TestRequest::post()
+            .uri("/api/v1/words")
+            .set_json(NewWord {
+                word: "test_list_words_api".to_string(),
+                url: None,
+                username: "test".to_string(),
+            })
+            .insert_header(("Authorization", "Bearer test"))
+            .to_request();
+        test::call_service(&app, req).await;
+
+        let req = test::TestRequest::get()
+            .uri("/api/v1/words")
+            .insert_header(("Authorization", "Bearer test"))
+            .to_request();
+        let resp = test::call_service(&app, req).await;
+        assert!(resp.status().is_success(), "Response Status Code: {:?}", resp.status());
+        let resp: Vec<Word> = test::read_body_json(resp).await;
+        assert!(resp.len() > 0, "No words returned");
+        assert!(resp.iter().any(|w| w.word == "test_list_words_api"), "Word not found");
+    }
+
+    #[actix_web::test]
+    async fn test_delete_word_api() {
+        let app = test::init_service(
+            App::new()
+                .app_data(Data::new(create_mock_app_state().await))
+                .wrap(HttpAuthentication::bearer(validator))
+                .service(delete)
+                .service(retrieve)
+                .service(add),
+        )
+        .await;
+
+        let req = test::TestRequest::post()
+            .uri("/api/v1/words")
+            .set_json(NewWord {
+                word: "test_delete_word_api".to_string(),
+                url: None,
+                username: "test".to_string(),
+            })
+            .insert_header(("Authorization", "Bearer test"))
+            .to_request();
+        let word: Word = test::call_and_read_body_json(&app, req).await;
+
+        let req = test::TestRequest::delete()
+            .uri(format!("/api/v1/words/{}", word.id).as_str())
+            .insert_header(("Authorization", "Bearer test"))
+            .to_request();
+        let resp = test::call_service(&app, req).await;
+        assert!(resp.status().is_success(), "Response Status Code: {:?}", resp.status());
+
+        let req = test::TestRequest::get()
+            .uri(format!("/api/v1/words/{}", word.id).as_str())
+            .insert_header(("Authorization", "Bearer test"))
+            .to_request();
+        let resp = test::call_service(&app, req).await;
+        assert_eq!(resp.status().as_u16(), 404, "Response Status Code: {:?}", resp.status());
+    }
 }

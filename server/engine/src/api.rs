@@ -1,59 +1,57 @@
-use anyhow::{anyhow, Result};
 use sqlx::PgPool;
 use validator::Validate;
 
-use crate::types::{NewWord, Offset, Word};
+use super::types::{Error, NewWord, Offset, Word};
 
-pub async fn create_word(new_word: NewWord, pool: &PgPool) -> Result<Word> {
-    new_word.validate().map_err(|e| anyhow!(e))?;
-    sqlx::query_as("INSERT INTO words(word, url, username) VALUES ($1, $2, $3) RETURNING id, word, url, username, created_at, updated_at")
+pub async fn create_word(new_word: NewWord, pool: &PgPool) -> Result<Word, Error> {
+    new_word.validate()?;
+    let word = sqlx::query_as("INSERT INTO words(word, url, username) VALUES ($1, $2, $3) RETURNING id, word, url, username, created_at, updated_at")
         .bind(&new_word.word)
         .bind(&new_word.url)
         .bind(&new_word.username)
         .fetch_one(pool)
-        .await
-        .map_err(|e| anyhow!(e))
+        .await?;
+    Ok(word)
 }
 
-pub async fn get_word(id: i32, username: &str, pool: &PgPool) -> Result<Word> {
+pub async fn get_word(id: i32, username: &str, pool: &PgPool) -> Result<Word, Error> {
     if id < 1 {
-        return Err(anyhow!("Invalid ID, must be greater than 0, got {}", id));
+        return Err(Error::Validation(validator::ValidationErrors::new()));
     }
-    sqlx::query_as("SELECT * FROM words WHERE id = $1 AND username = $2")
+    let word = sqlx::query_as("SELECT * FROM words WHERE id = $1 AND username = $2")
         .bind(id)
         .bind(username)
         .fetch_one(pool)
-        .await
-        .map_err(|e| anyhow!(e))
+        .await?;
+    Ok(word)
 }
 
-pub async fn list_words(username: &str, offset: Offset, pool: &PgPool) -> Result<Vec<Word>> {
-    offset.validate().map_err(|e| anyhow!(e))?;
-    sqlx::query_as("SELECT * FROM words WHERE username = $1 ORDER BY created_at OFFSET $2 LIMIT $3")
+pub async fn list_words(username: &str, offset: Offset, pool: &PgPool) -> Result<Vec<Word>, Error> {
+    offset.validate()?;
+    let words = sqlx::query_as("SELECT * FROM words WHERE username = $1 ORDER BY created_at OFFSET $2 LIMIT $3")
         .bind(username)
         .bind(offset.offset.unwrap_or(0))
         .bind(offset.size.unwrap_or(10))
         .fetch_all(pool)
-        .await
-        .map_err(|e| anyhow!(e))
+        .await?;
+    Ok(words)
 }
 
-pub async fn delete_word(id: i32, username: &str, pool: &PgPool) -> Result<()> {
+pub async fn delete_word(id: i32, username: &str, pool: &PgPool) -> Result<(), Error> {
     if id < 1 {
-        return Err(anyhow!("Invalid ID, must be greater than 0, got {}", id));
+        return Err(Error::Validation(validator::ValidationErrors::new()));
     }
     sqlx::query("DELETE FROM words WHERE id = $1 AND username = $2")
         .bind(id)
         .bind(username)
         .execute(pool)
-        .await
-        .map_err(|e| anyhow!(e))?;
+        .await?;
     Ok(())
 }
 
 #[cfg(test)]
 pub mod tests {
-    
+
     use crate::setup_database;
 
     use super::*;
@@ -67,7 +65,7 @@ pub mod tests {
             .await
             .unwrap();
         setup_database(&pool).await.unwrap();
-        pool       
+        pool
     }
 
     #[tokio::test]
