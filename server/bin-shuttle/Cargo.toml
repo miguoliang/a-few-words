@@ -19,7 +19,3 @@ thiserror = "1.0.63"
 [dev-dependencies]
 tokio = { version = "1.26.0", features = ["full"] }
 sqlx = { version = "0.7.1", features = ["chrono", "postgres"] }
-
-[profile.test]
-opt-level = 0   # No optimization for tests
-debug = true    # Include debug information
