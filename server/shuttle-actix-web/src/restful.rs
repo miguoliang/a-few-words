@@ -1,3 +1,5 @@
+use std::{rc::Rc, sync::Arc};
+
 use super::cognito;
 use crate::cognito::Claims;
 use actix_web::{
@@ -10,58 +12,59 @@ use sqlx::PgPool;
 
 #[derive(Clone)]
 pub struct AppState {
-    pub pool: PgPool,
-    pub cognito_validator: cognito::CognitoValidator,
+    pub pool: Arc<PgPool>,
+    pub cognito_validator: Option<Rc<cognito::CognitoValidator>>,
 }
 
-#[get("/{id}")]
+#[get("/api/v1/words/{id}")]
 pub async fn retrieve(
     path: web::Path<i32>,
     claims: web::ReqData<Claims>,
     state: web::Data<AppState>,
 ) -> Result<Json<Word>> {
-    let word = engine::api::get_word(path.into_inner(), &claims.username, &state.pool)
+    let word = engine::api::get_word(path.into_inner(), &claims.username, &*state.pool)
         .await
         .map_err(|e| error::ErrorBadRequest(e.to_string()))?;
     Ok(Json(word))
 }
 
-#[post("")]
+#[post("/api/v1/words")]
 pub async fn add(
     word_new: web::Json<NewWord>,
     state: web::Data<AppState>,
     claims: web::ReqData<Claims>,
 ) -> Result<Json<Word>> {
+    println!("claims: {:?}", claims);
     let new_word = NewWord {
         word: word_new.word.clone(),
         url: word_new.url.clone(),
         username: claims.username.clone(),
     };
-    let word = engine::api::create_word(new_word, &state.pool)
+    let word = engine::api::create_word(new_word, &*state.pool)
         .await
         .map_err(|e| error::ErrorBadRequest(e.to_string()))?;
     Ok(Json(word))
 }
 
-#[get("")]
+#[get("/api/v1/words")]
 pub async fn list(
     state: web::Data<AppState>,
     claims: web::ReqData<Claims>,
     query: Query<Offset>,
 ) -> Result<Json<Vec<Word>>> {
-    let words = engine::api::list_words(&claims.username, query.into_inner(), &state.pool)
+    let words = engine::api::list_words(&claims.username, query.into_inner(), &*state.pool)
         .await
         .map_err(|e| error::ErrorBadRequest(e.to_string()))?;
     Ok(Json(words))
 }
 
-#[delete("/{id}")]
+#[delete("/api/v1/words/{id}")]
 pub async fn delete(
     state: web::Data<AppState>,
     claims: web::ReqData<Claims>,
     path: web::Path<i32>,
 ) -> Result<impl Responder> {
-    engine::api::delete_word(path.into_inner(), &claims.username, &state.pool)
+    engine::api::delete_word(path.into_inner(), &claims.username, &*state.pool)
         .await
         .map_err(|e| error::ErrorBadRequest(e.to_string()))?;
     Ok(actix_web::HttpResponse::NoContent().finish())
@@ -71,15 +74,11 @@ pub async fn delete(
 mod tests {
 
     use super::*;
-    use actix_web::{dev::ServiceRequest, Error, test, App, HttpMessage};
+    use actix_web::{dev::ServiceRequest, test, App, Error, HttpMessage};
     use actix_web_httpauth::{extractors::bearer::BearerAuth, middleware::HttpAuthentication};
     use anyhow::Result;
     use engine::setup_database;
     use sqlx::postgres::PgPoolOptions;
-
-    struct MockAppState {
-        pool: PgPool,
-    }
 
     async fn get_connection_pool() -> PgPool {
         let connection_string = "postgres://username:password@localhost:5432/a_few_words";
@@ -92,9 +91,10 @@ mod tests {
         pool
     }
 
-    async fn create_mock_app_state() -> MockAppState {
-        MockAppState {
-            pool: get_connection_pool().await,
+    async fn create_mock_app_state() -> AppState {
+        AppState {
+            pool: Arc::new(get_connection_pool().await),
+            cognito_validator: None,
         }
     }
 
@@ -110,7 +110,7 @@ mod tests {
     }
 
     #[actix_web::test]
-    async fn test_create_word() {
+    async fn test_create_word_api() {
         let app = test::init_service(
             App::new()
                 .app_data(create_mock_app_state())
@@ -119,14 +119,15 @@ mod tests {
         )
         .await;
         let req = test::TestRequest::post()
-            .uri("/")
+            .uri("/api/v1/words")
             .set_json(NewWord {
-                word: "test".to_string(),
+                word: "test_create_word_api".to_string(),
                 url: None,
                 username: "test".to_string(),
             })
+            .insert_header(("Authorization", "Bearer test"))
             .to_request();
         let resp = test::call_service(&app, req).await;
-        assert!(resp.status().is_success());
+        assert!(resp.status().is_success(), "Response Status Code: {:?}", resp.status());
     }
 }

@@ -1,3 +1,5 @@
+use std::{rc::Rc, sync::Arc};
+
 use actix_web::{
     dev::ServiceRequest,
     middleware::Logger,
@@ -46,8 +48,8 @@ async fn main(
                 .service(add)
                 .service(list)
                 .app_data(Data::new(AppState {
-                    pool,
-                    cognito_validator,
+                    pool: Arc::new(pool),
+                    cognito_validator: Some(Rc::new(cognito_validator)),
                 })),
         );
     };
@@ -63,7 +65,8 @@ async fn validator(
         .app_data::<Data<AppState>>()
         .unwrap()
         .cognito_validator
-        .clone();
+        .clone()
+        .unwrap();
     let token = credentials.token();
     match cognito_validator.validate_token(token) {
         Ok(claims) => {
