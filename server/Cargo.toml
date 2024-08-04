@@ -1,2 +1,2 @@
 [workspace]
-members = ["engine", "shuttle-actix-web"]
+members = ["engine", "bin-shuttle"]
