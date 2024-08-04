@@ -1,5 +1,3 @@
-use actix_web::{dev::ServiceRequest, HttpMessage};
-use actix_web_httpauth::extractors::bearer::BearerAuth;
 use anyhow::{Context, Result};
 use jsonwebtoken::{decode, decode_header, DecodingKey, Validation};
 use serde::{Deserialize, Serialize};
