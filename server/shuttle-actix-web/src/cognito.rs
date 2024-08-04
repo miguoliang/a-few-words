@@ -1,4 +1,5 @@
-use anyhow::{Context, Result};
+use std::error::Error;
+
 use jsonwebtoken::{decode, decode_header, DecodingKey, Validation};
 use serde::{Deserialize, Serialize};
 
@@ -10,15 +11,14 @@ pub struct CognitoValidator {
 }
 
 impl CognitoValidator {
-    pub async fn new(region: &str, user_pool_id: &str, client_id: &str) -> Result<Self> {
+    pub async fn new(region: &str, user_pool_id: &str, client_id: &str) -> Result<Self, reqwest::Error> {
         let issuer = format!(
             "https://cognito-idp.{}.amazonaws.com/{}",
             region, user_pool_id
         );
         let jwks_url = format!("{}/.well-known/jwks.json", issuer);
         let jwks = fetch_jwks(&jwks_url)
-            .await
-            .context("Failed to fetch JWKS")?;
+            .await?;
         Ok(Self {
             issuer,
             client_id: client_id.to_string(),
@@ -26,12 +26,10 @@ impl CognitoValidator {
         })
     }
 
-    pub fn validate_token(&self, token: &str) -> Result<Claims> {
+    pub fn validate_token(&self, token: &str) -> Result<Claims, Box<dyn Error>> {
         // Decode the header to get the key id (kid)
-        let header = decode_header(token)
-            .context("Failed to decode JWT header")
-            .unwrap();
-        let kid = header.kid.context("Missing 'kid' in JWT header").unwrap();
+        let header = decode_header(token)?;
+        let kid = header.kid.unwrap();
         let alg = header.alg;
 
         // Find the corresponding JWK
@@ -40,13 +38,10 @@ impl CognitoValidator {
             .keys
             .iter()
             .find(|&key| key.kid == kid)
-            .context("No matching JWK found for 'kid'")
-            .unwrap();
+            .ok_or("Can't find the corresponding JWK")?;
 
         // Convert the JWK to a decoding key
-        let decoding_key = DecodingKey::from_rsa_components(&jwk.n, &jwk.e)
-            .context("Failed to create decoding key from JWK")
-            .unwrap();
+        let decoding_key = DecodingKey::from_rsa_components(&jwk.n, &jwk.e)?;
 
         // Define validation criteria
         let mut validation = Validation::new(alg);
@@ -54,22 +49,18 @@ impl CognitoValidator {
         validation.set_issuer(&[&self.issuer]);
 
         // Decode and validate the token
-        let token_data = decode::<Claims>(token, &decoding_key, &validation)
-            .context("Failed to decode and validate JWT")
-            .unwrap();
+        let token_data = decode::<Claims>(token, &decoding_key, &validation)?;
 
         Ok(token_data.claims)
     }
 }
 
-async fn fetch_jwks(jwks_url: &str) -> Result<Jwks> {
+async fn fetch_jwks(jwks_url: &str) -> Result<Jwks, reqwest::Error> {
     let response = reqwest::get(jwks_url)
-        .await
-        .context("Failed to fetch JWKS")?;
+        .await?;
     let jwks = response
         .json::<Jwks>()
-        .await
-        .context("Failed to deserialize JWKS response")?;
+        .await?;
     Ok(jwks)
 }
 

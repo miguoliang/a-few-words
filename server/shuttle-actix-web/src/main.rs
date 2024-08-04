@@ -11,7 +11,6 @@ use actix_web_httpauth::{
     headers::www_authenticate::bearer::Bearer,
     middleware::HttpAuthentication,
 };
-use anyhow::Context;
 use engine::setup_database;
 use restful::{add, list, retrieve, AppState};
 use shuttle_actix_web::ShuttleActixWeb;
@@ -19,6 +18,7 @@ use sqlx::PgPool;
 
 mod cognito;
 mod restful;
+mod error;
 
 #[shuttle_runtime::main]
 async fn main(
@@ -37,7 +37,7 @@ async fn main(
         "5p99s5nl7nha5tfnpik3r0rb7j",
     )
     .await
-    .context("Failed to create Cognito validator")?;
+    .expect("Failed to create Cognito validator");
 
     let config = move |cfg: &mut ServiceConfig| {
         cfg.service(

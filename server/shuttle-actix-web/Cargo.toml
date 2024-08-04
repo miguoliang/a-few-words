@@ -7,19 +7,18 @@ edition = "2021"
 actix-web = "4.3.1"
 shuttle-actix-web = "0.46.0"
 shuttle-runtime = "0.46.0"
-serde = "1.0.148"
 shuttle-shared-db = { version = "0.46.0", features = ["postgres", "sqlx"] }
-sqlx = { version = "0.7.1", features = ["chrono"] }
-tokio = "1.26.0"
 jsonwebtoken = "9.3.0"
-reqwest = { version = "0.12.5", features = ["json"] }
 actix-web-httpauth = "0.8.2"
-serde_json = "1.0.120"
-anyhow = "1.0.86"
-validator = { version = "0.18.1", features = ["derive"] }
-once_cell = "1.19.0"
-regex = "1.10.5"
 engine = { path = "../engine", features = ["serde"] }
+reqwest = { version = "0.12.5", features = ["json"] }
+serde = { version = "1.0.204", features = ["derive"] }
+sqlx = { version = "0.7.1", features = ["postgres"] }
+thiserror = "1.0.63"
+
+[dev-dependencies]
+tokio = { version = "1.26.0", features = ["full"] }
+sqlx = { version = "0.7.1", features = ["chrono", "postgres"] }
 
 [profile.test]
 opt-level = 0   # No optimization for tests

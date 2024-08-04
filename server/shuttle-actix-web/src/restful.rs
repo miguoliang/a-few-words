@@ -1,14 +1,16 @@
 use std::{rc::Rc, sync::Arc};
 
 use super::cognito;
-use crate::cognito::Claims;
+use super::cognito::Claims;
 use actix_web::{
-    delete, error, get, post,
+    delete, get, post,
     web::{self, Json, Query},
     Responder, Result,
 };
 use engine::types::{NewWord, Offset, Word};
 use sqlx::PgPool;
+
+use super::error::IntoActixError;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -24,7 +26,7 @@ pub async fn retrieve(
 ) -> Result<Json<Word>> {
     let word = engine::api::get_word(path.into_inner(), &claims.username, &*state.pool)
         .await
-        .map_err(|e| error::ErrorBadRequest(e.to_string()))?;
+        .map_err(engine::types::Error::into_actix_error)?;
     Ok(Json(word))
 }
 
@@ -41,7 +43,7 @@ pub async fn add(
     };
     let word = engine::api::create_word(new_word, &*state.pool)
         .await
-        .map_err(|e| error::ErrorBadRequest(e.to_string()))?;
+        .map_err(engine::types::Error::into_actix_error)?;
     Ok(Json(word))
 }
 
@@ -53,7 +55,7 @@ pub async fn list(
 ) -> Result<Json<Vec<Word>>> {
     let words = engine::api::list_words(&claims.username, query.into_inner(), &*state.pool)
         .await
-        .map_err(|e| error::ErrorBadRequest(e.to_string()))?;
+        .map_err(engine::types::Error::into_actix_error)?;
     Ok(Json(words))
 }
 
@@ -65,7 +67,7 @@ pub async fn delete(
 ) -> Result<impl Responder> {
     engine::api::delete_word(path.into_inner(), &claims.username, &*state.pool)
         .await
-        .map_err(|e| error::ErrorBadRequest(e.to_string()))?;
+        .map_err(engine::types::Error::into_actix_error)?;
     Ok(actix_web::HttpResponse::NoContent().finish())
 }
 
@@ -75,7 +77,6 @@ mod tests {
     use super::*;
     use actix_web::{dev::ServiceRequest, test, App, Error, HttpMessage};
     use actix_web_httpauth::{extractors::bearer::BearerAuth, middleware::HttpAuthentication};
-    use anyhow::Result;
     use engine::setup_database;
     use sqlx::postgres::PgPoolOptions;
     use web::Data;
@@ -128,7 +129,11 @@ mod tests {
             .insert_header(("Authorization", "Bearer test"))
             .to_request();
         let resp = test::call_service(&app, req).await;
-        assert!(resp.status().is_success(), "Response Status Code: {:?}", resp.status());
+        assert!(
+            resp.status().is_success(),
+            "Response Status Code: {:?}",
+            resp.status()
+        );
     }
 
     #[actix_web::test]
@@ -158,7 +163,11 @@ mod tests {
             .insert_header(("Authorization", "Bearer test"))
             .to_request();
         let resp = test::call_service(&app, req).await;
-        assert!(resp.status().is_success(), "Response Status Code: {:?}", resp.status());
+        assert!(
+            resp.status().is_success(),
+            "Response Status Code: {:?}",
+            resp.status()
+        );
     }
 
     #[actix_web::test]
@@ -188,10 +197,17 @@ mod tests {
             .insert_header(("Authorization", "Bearer test"))
             .to_request();
         let resp = test::call_service(&app, req).await;
-        assert!(resp.status().is_success(), "Response Status Code: {:?}", resp.status());
+        assert!(
+            resp.status().is_success(),
+            "Response Status Code: {:?}",
+            resp.status()
+        );
         let resp: Vec<Word> = test::read_body_json(resp).await;
         assert!(resp.len() > 0, "No words returned");
-        assert!(resp.iter().any(|w| w.word == "test_list_words_api"), "Word not found");
+        assert!(
+            resp.iter().any(|w| w.word == "test_list_words_api"),
+            "Word not found"
+        );
     }
 
     #[actix_web::test]
@@ -222,13 +238,22 @@ mod tests {
             .insert_header(("Authorization", "Bearer test"))
             .to_request();
         let resp = test::call_service(&app, req).await;
-        assert!(resp.status().is_success(), "Response Status Code: {:?}", resp.status());
+        assert!(
+            resp.status().is_success(),
+            "Response Status Code: {:?}",
+            resp.status()
+        );
 
         let req = test::TestRequest::get()
             .uri(format!("/api/v1/words/{}", word.id).as_str())
             .insert_header(("Authorization", "Bearer test"))
             .to_request();
         let resp = test::call_service(&app, req).await;
-        assert_eq!(resp.status().as_u16(), 404, "Response Status Code: {:?}", resp.status());
+        assert_eq!(
+            resp.status().as_u16(),
+            404,
+            "Response Status Code: {:?}",
+            resp.status()
+        );
     }
 }

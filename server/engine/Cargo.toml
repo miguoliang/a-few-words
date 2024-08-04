@@ -16,7 +16,6 @@ thiserror = "1.0.63"
 
 [dev-dependencies]
 tokio = { version = "1.39.2", features = ["full"] }
-ctor = "0.2.8"
 
 [features]
 default = []
