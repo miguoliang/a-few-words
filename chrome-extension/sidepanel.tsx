@@ -1,5 +1,6 @@
 import { AiOutlineLoading } from "react-icons/ai"
 import { HiOutlineTrash } from "react-icons/hi"
+import { IoEarth } from "react-icons/io5"
 import { Provider } from "react-redux"
 
 import { PersistGate } from "@plasmohq/redux-persist/integration/react"
@@ -102,7 +103,7 @@ const WordList = () => {
     <div className="flex flex-col gap-2">
       {words?.length === 0 && <div>No words saved yet</div>}
       {words?.map((word) => (
-        <WordCell key={word.id} word={word.word} id={word.id} />
+        <WordCell key={word.id} word={word.word} id={word.id} url={word.url} />
       ))}
     </div>
   )
@@ -125,36 +126,38 @@ const WordCell = ({ id, word, url }: WordProps) => {
   return (
     <div className="flex justify-between items-center rounded bg-gray-200 p-1">
       <span>{word}</span>
-      <button
-        type="button"
-        onClick={async () => await mutation.mutateAsync(id)}>
-        {mutation.isIdle && <HiOutlineTrash />}
-        {mutation.isPending && (
-          <motion.div
-            animate={{ rotate: 360 }}
-            transition={{
-              duration: 1,
-              bounce: 0,
-              repeat: Infinity,
-              type: "spring",
-              delay: 0
-            }}>
-            <AiOutlineLoading />
-          </motion.div>
-        )}
-      </button>
-      {url && (
+      <div className="flex gap-1">
         <button
           type="button"
-          onClick={() =>
-            chrome.runtime.sendMessage({
-              action: "openUrl",
-              url
-            })
-          }>
-          Link
+          onClick={async () => await mutation.mutateAsync(id)}>
+          {mutation.isIdle && <HiOutlineTrash />}
+          {mutation.isPending && (
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{
+                duration: 1,
+                bounce: 0,
+                repeat: Infinity,
+                type: "spring",
+                delay: 0
+              }}>
+              <AiOutlineLoading />
+            </motion.div>
+          )}
         </button>
-      )}
+        {url && (
+          <button
+            type="button"
+            onClick={() =>
+              chrome.runtime.sendMessage({
+                action: "openUrl",
+                url
+              })
+            }>
+            <IoEarth />
+          </button>
+        )}
+      </div>
     </div>
   )
 }
