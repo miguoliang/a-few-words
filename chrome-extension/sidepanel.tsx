@@ -77,7 +77,7 @@ const AuthenticatedView = () => {
         </button>
         <button
           className="m-5 bg-black text-white rounded p-2"
-          onClick={() => chrome.runtime.sendMessage({ action: "openNewTab" })}>
+          onClick={() => chrome.runtime.sendMessage({ action: "register" })}>
           Register
         </button>
       </div>
@@ -111,9 +111,10 @@ const WordList = () => {
 interface WordProps {
   id: number
   word: string
+  url?: string
 }
 
-const WordCell = ({ id, word }: WordProps) => {
+const WordCell = ({ id, word, url }: WordProps) => {
   const dispatch = useAppDispatch()
   const mutation = useMutation({
     mutationFn: (id: number) => deleteWord(id),
@@ -128,18 +129,32 @@ const WordCell = ({ id, word }: WordProps) => {
         type="button"
         onClick={async () => await mutation.mutateAsync(id)}>
         {mutation.isIdle && <HiOutlineTrash />}
-        {mutation.isPending && <motion.div
-          animate={{ rotate: 360 }}
-          transition={{
-            duration: 1,
-            bounce: 0,
-            repeat: Infinity,
-            type: "spring",
-            delay: 0
-          }}>
-          <AiOutlineLoading />
-        </motion.div>}
+        {mutation.isPending && (
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{
+              duration: 1,
+              bounce: 0,
+              repeat: Infinity,
+              type: "spring",
+              delay: 0
+            }}>
+            <AiOutlineLoading />
+          </motion.div>
+        )}
       </button>
+      {url && (
+        <button
+          type="button"
+          onClick={() =>
+            chrome.runtime.sendMessage({
+              action: "openUrl",
+              url
+            })
+          }>
+          Link
+        </button>
+      )}
     </div>
   )
 }

@@ -1,4 +1,4 @@
-import { createWord, AUTH_HOST, type Word, AUTH_CLIENT_ID } from "~content"
+import { AUTH_CLIENT_ID, AUTH_HOST, createWord } from "~content"
 
 export {}
 
@@ -18,26 +18,114 @@ chrome.contextMenus.onClicked.addListener((item, tab) => {
     chrome.scripting.executeScript(
       {
         target: { tabId: tab.id },
-        func: () => window.getSelection()?.toString()
+        func: () => {
+          function getPrecedingWords(selection, wordCount) {
+            const range = selection.getRangeAt(0)
+            let precedingWords = []
+            let currentNode = range.startContainer
+            let offset = range.startOffset
+
+            while (precedingWords.length < wordCount && currentNode) {
+              if (currentNode.nodeType === Node.TEXT_NODE) {
+                const text = currentNode.nodeValue.slice(0, offset).split(/\s+/)
+                precedingWords = text.concat(precedingWords).slice(-wordCount)
+              } else if (
+                currentNode.nodeType === Node.ELEMENT_NODE &&
+                currentNode.childNodes.length > 0
+              ) {
+                currentNode =
+                  currentNode.childNodes[currentNode.childNodes.length - 1]
+                offset =
+                  currentNode.nodeType === Node.TEXT_NODE
+                    ? currentNode.nodeValue.length
+                    : 0
+                continue
+              }
+              offset = currentNode.nodeType === Node.TEXT_NODE ? 0 : null
+              currentNode = currentNode.previousSibling
+            }
+
+            return precedingWords
+          }
+
+          function getFollowingWords(selection, wordCount) {
+            const range = selection.getRangeAt(0)
+            let followingWords = []
+            let currentNode = range.endContainer
+            let offset = range.endOffset
+
+            while (followingWords.length < wordCount && currentNode) {
+              if (currentNode.nodeType === Node.TEXT_NODE) {
+                const text = currentNode.nodeValue.slice(offset).split(/\s+/)
+                followingWords = followingWords.concat(text).slice(0, wordCount)
+              } else if (
+                currentNode.nodeType === Node.ELEMENT_NODE &&
+                currentNode.childNodes.length > 0
+              ) {
+                currentNode = currentNode.childNodes[0]
+                offset = 0
+                continue
+              }
+              offset =
+                currentNode.nodeType === Node.TEXT_NODE
+                  ? currentNode.nodeValue.length
+                  : null
+              currentNode = currentNode.nextSibling
+            }
+
+            return followingWords
+          }
+
+          function getSurroundingText(selection, wordCount) {
+            const precedingWords = getPrecedingWords(selection, wordCount)
+            const followingWords = getFollowingWords(selection, wordCount)
+            const encodedPrecedingWords = precedingWords
+              .map((word) => encodeURIComponent(word))
+              .join(" ")
+              .trim()
+            const encodedFollowingWords = followingWords
+              .map((word) => encodeURIComponent(word))
+              .join(" ")
+              .trim()
+            return `${encodedPrecedingWords}-,${selection.toString()},-${encodedFollowingWords}`
+              .trim()
+              .replace(/^-,/g, "")
+              .replace(/,-$/g, "")
+          }
+
+          const selection = window.getSelection()
+          if (selection?.rangeCount > 0) {
+            const surroundingText = getSurroundingText(selection, 4)
+            const url = new URL(window.location.href)
+            url.hash = `:~:text=${surroundingText}`
+            return {
+              text: selection.toString().trim(),
+              highlightUrl: url.href
+            }
+          }
+          return { text: "", highlightUrl: "" }
+        }
       },
-      async (selectedText) => {
-        const text = selectedText[0].result
-        if (!text) return
-        const word: Word = { word: text.trim() }
-        await createWord(word)
+      async (results) => {
+        const ret = results[0]?.result
+        console.log(ret, "ttt")
+        if (!ret) return
+        await createWord({ word: ret.text, url: ret.highlightUrl })
       }
     )
   }
 })
 
-chrome.runtime.onMessage.addListener(function(request) {
-  if (request.action === 'openNewTab') {
+chrome.runtime.onMessage.addListener(function (request) {
+  if (request.action === "openUrl") {
+    chrome.tabs.create({ url: request.url })
+  } else if (request.action === "register") {
     const searchParams = new URLSearchParams()
     searchParams.append("client_id", AUTH_CLIENT_ID)
     searchParams.append("response_type", "code")
     searchParams.append("redirect_uri", chrome.identity.getRedirectURL())
     searchParams.append("scope", "openid email profile")
-    const url = `${AUTH_HOST}/signup?${searchParams.toString()}`;
-    chrome.tabs.create({ url });
+    const url = `${AUTH_HOST}/signup?${searchParams.toString()}`
+    chrome.tabs.create({ url })
   }
-});
+})
