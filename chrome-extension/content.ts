@@ -105,6 +105,30 @@ export const createWord = async (word: Word) => {
   }
 }
 
+export const deleteWord = async (id: number) => {
+  try {
+    const response = await fetch(`http://localhost:8000/api/v1/words/${id}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: "Bearer " + store?.getState().auth.access_token
+      }
+    })
+    if (response.ok) {
+      store.dispatch(
+        setWords(
+          store.getState().words.words.filter((word) => word.id !== id)
+        )
+      )
+    } else if (response.status === 401) {
+      store.dispatch(setLogout())
+    } else {
+      console.error("Error deleting word:", response.statusText)
+    }
+  } catch (error) {
+    console.error("Error deleting word:", error)
+  }
+}
+
 export type Word = {
   id?: number
   word: string

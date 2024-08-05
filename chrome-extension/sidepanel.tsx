@@ -1,9 +1,10 @@
-import { HiOutlineTrash } from "react-icons/hi"
+import { AiOutlineLoading } from "react-icons/ai"
+import { HiClock, HiOutlineTrash } from "react-icons/hi"
 import { Provider } from "react-redux"
 
 import { PersistGate } from "@plasmohq/redux-persist/integration/react"
 
-import { fetchWords, launchWebAuthFlow } from "~content"
+import { deleteWord, fetchWords, launchWebAuthFlow } from "~content"
 import { persistor, store, useAppDispatch, useAppSelector } from "~store"
 
 import "~style.css"
@@ -11,12 +12,14 @@ import "~style.css"
 import {
   QueryClient,
   QueryClientProvider,
-  useInfiniteQuery
+  useInfiniteQuery,
+  useMutation
 } from "@tanstack/react-query"
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools"
+import { motion, MotionConfig } from "framer-motion"
 import { useEffect } from "react"
 
-import { setWords } from "~words-slice"
+import { removeWord, setWords } from "~words-slice"
 
 const queryClient = new QueryClient()
 
@@ -98,20 +101,45 @@ const WordList = () => {
   return (
     <div className="flex flex-col gap-2">
       {words?.length === 0 && <div>No words saved yet</div>}
-      {words?.map((word) => <WordCell key={word.id} word={word.word} />)}
+      {words?.map((word) => (
+        <WordCell key={word.id} word={word.word} id={word.id} />
+      ))}
     </div>
   )
 }
 
 interface WordProps {
+  id: number
   word: string
 }
 
-const WordCell = ({ word }: WordProps) => {
+const WordCell = ({ id, word }: WordProps) => {
+  const dispatch = useAppDispatch()
+  const mutation = useMutation({
+    mutationFn: (id: number) => deleteWord(id),
+    onSuccess: () => {
+      dispatch(removeWord(id))
+    }
+  })
   return (
     <div className="flex justify-between items-center rounded bg-gray-200 p-1">
       <span>{word}</span>
-      <HiOutlineTrash />
+      <button
+        type="button"
+        onClick={async () => await mutation.mutateAsync(id)}>
+        {mutation.isIdle && <HiOutlineTrash />}
+        {mutation.isPending && <motion.div
+          animate={{ rotate: 360 }}
+          transition={{
+            duration: 1,
+            bounce: 0,
+            repeat: Infinity,
+            type: "spring",
+            delay: 0
+          }}>
+          <AiOutlineLoading />
+        </motion.div>}
+      </button>
     </div>
   )
 }
