@@ -12,7 +12,7 @@ use actix_web_httpauth::{
     middleware::HttpAuthentication,
 };
 use engine::setup_database;
-use restful::{add, list, retrieve, AppState};
+use restful::{add, delete, list, retrieve, AppState};
 use shuttle_actix_web::ShuttleActixWeb;
 use sqlx::PgPool;
 
@@ -41,12 +41,13 @@ async fn main(
 
     let config = move |cfg: &mut ServiceConfig| {
         cfg.service(
-            web::scope("/words")
+            web::scope("/api/v1")
                 .wrap(Logger::default())
                 .wrap(HttpAuthentication::bearer(validator))
                 .service(retrieve)
                 .service(add)
                 .service(list)
+                .service(delete)
                 .app_data(Data::new(AppState {
                     pool: Arc::new(pool),
                     cognito_validator: Some(Rc::new(cognito_validator)),

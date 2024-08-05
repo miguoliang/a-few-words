@@ -23,7 +23,7 @@ chrome.contextMenus.onClicked.addListener((item, tab) => {
       async (selectedText) => {
         const text = selectedText[0].result
         if (!text) return
-        const word: Word = { word: text }
+        const word: Word = { word: text.trim() }
         await createWord(word)
       }
     )

@@ -57,47 +57,61 @@ export function launchWebAuthFlow() {
   )
 }
 
-export const fetchWords = async () => {
-  return fetch("http://localhost:8000/words", {
-    headers: {
-      Authorization: `Bearer ${store.getState().auth.access_token}`
-    }
-  }).then(async (response) => {
+export const fetchWords = async (offset: number = 0, size: number = 10) => {
+  try {
+    const response = await fetch(
+      `http://localhost:8000/api/v1/words?offset=${offset}&size=${size}`,
+      {
+        headers: {
+          Authorization: `Bearer ${store.getState().auth.access_token}`
+        }
+      }
+    )
     if (response.ok) {
-      const data = await response.json()
-      store.dispatch(setWords(data))
+      return (await response.json()) as Words
     } else if (response.status === 401) {
       store.dispatch(setLogout())
+      return [] as Words
     } else {
-      console.error(`Error: ${response.statusText} (${response.status})`)
+      throw Error(`Error: ${response.statusText} (${response.status})`)
     }
-  })
+  } catch (error) {
+    console.error("Error fetching words:", error)
+    return [] as Words
+  }
 }
 
 export const createWord = async (word: Word) => {
-  return fetch("http://localhost:8000/words", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: "Bearer " + store?.getState().auth.access_token
-    },
-    body: JSON.stringify(word)
-  }).then(async (response) => {
+  try {
+    const response = await fetch("http://localhost:8000/api/v1/words", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + store?.getState().auth.access_token
+      },
+      body: JSON.stringify(word)
+    })
     if (response.ok) {
-      const words = store.getState().words.words
-      store.dispatch(setWords([word, ...words]))
+      store.dispatch(
+        setWords([...store.getState().words.words, await response.json()])
+      )
     } else if (response.status === 401) {
       store.dispatch(setLogout())
     } else {
-      console.error(`Error: ${response.statusText} (${response.status})`)
+      console.error("Error creating word:", response.statusText)
     }
-  })
+  } catch (error) {
+    console.error("Error creating word:", error)
+  }
 }
 
 export type Word = {
+  id?: number
   word: string
   url?: string
   username?: string
+  created_at?: number
+  updated_at?: number
 }
 
 export type Words = Word[]

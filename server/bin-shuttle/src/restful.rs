@@ -7,7 +7,8 @@ use actix_web::{
     web::{self, Json, Query},
     Responder, Result,
 };
-use engine::types::{NewWord, Offset, Word};
+use engine::types::{Offset, Word};
+use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 
 use super::error::IntoActixError;
@@ -18,7 +19,7 @@ pub struct AppState {
     pub cognito_validator: Option<Rc<cognito::CognitoValidator>>,
 }
 
-#[get("/api/v1/words/{id}")]
+#[get("/words/{id}")]
 pub async fn retrieve(
     path: web::Path<i32>,
     claims: web::ReqData<Claims>,
@@ -30,13 +31,19 @@ pub async fn retrieve(
     Ok(Json(word))
 }
 
-#[post("/api/v1/words")]
+#[derive(Serialize, Deserialize)]
+pub struct NewWord {
+    word: String,
+    url: Option<String>,
+}
+
+#[post("/words")]
 pub async fn add(
     word_new: web::Json<NewWord>,
     state: web::Data<AppState>,
     claims: web::ReqData<Claims>,
 ) -> Result<Json<Word>> {
-    let new_word = NewWord {
+    let new_word = engine::types::NewWord {
         word: word_new.word.clone(),
         url: word_new.url.clone(),
         username: claims.username.clone(),
@@ -47,7 +54,7 @@ pub async fn add(
     Ok(Json(word))
 }
 
-#[get("/api/v1/words")]
+#[get("/words")]
 pub async fn list(
     state: web::Data<AppState>,
     claims: web::ReqData<Claims>,
@@ -59,7 +66,7 @@ pub async fn list(
     Ok(Json(words))
 }
 
-#[delete("/api/v1/words/{id}")]
+#[delete("/words/{id}")]
 pub async fn delete(
     state: web::Data<AppState>,
     claims: web::ReqData<Claims>,
@@ -120,11 +127,10 @@ mod tests {
         )
         .await;
         let req = test::TestRequest::post()
-            .uri("/api/v1/words")
+            .uri("/words")
             .set_json(NewWord {
                 word: "test_create_word_api".to_string(),
                 url: None,
-                username: "test".to_string(),
             })
             .insert_header(("Authorization", "Bearer test"))
             .to_request();
@@ -148,18 +154,17 @@ mod tests {
         .await;
 
         let req = test::TestRequest::post()
-            .uri("/api/v1/words")
+            .uri("/words")
             .set_json(NewWord {
                 word: "test_retrieve_word_api".to_string(),
                 url: None,
-                username: "test".to_string(),
             })
             .insert_header(("Authorization", "Bearer test"))
             .to_request();
         let word: Word = test::call_and_read_body_json(&app, req).await;
 
         let req = test::TestRequest::get()
-            .uri(format!("/api/v1/words/{}", word.id).as_str())
+            .uri(format!("/words/{}", word.id).as_str())
             .insert_header(("Authorization", "Bearer test"))
             .to_request();
         let resp = test::call_service(&app, req).await;
@@ -182,18 +187,17 @@ mod tests {
         .await;
 
         let req = test::TestRequest::post()
-            .uri("/api/v1/words")
+            .uri("/words")
             .set_json(NewWord {
                 word: "test_list_words_api".to_string(),
                 url: None,
-                username: "test".to_string(),
             })
             .insert_header(("Authorization", "Bearer test"))
             .to_request();
         test::call_service(&app, req).await;
 
         let req = test::TestRequest::get()
-            .uri("/api/v1/words")
+            .uri("/words")
             .insert_header(("Authorization", "Bearer test"))
             .to_request();
         let resp = test::call_service(&app, req).await;
@@ -223,18 +227,17 @@ mod tests {
         .await;
 
         let req = test::TestRequest::post()
-            .uri("/api/v1/words")
+            .uri("/words")
             .set_json(NewWord {
                 word: "test_delete_word_api".to_string(),
                 url: None,
-                username: "test".to_string(),
             })
             .insert_header(("Authorization", "Bearer test"))
             .to_request();
         let word: Word = test::call_and_read_body_json(&app, req).await;
 
         let req = test::TestRequest::delete()
-            .uri(format!("/api/v1/words/{}", word.id).as_str())
+            .uri(format!("/words/{}", word.id).as_str())
             .insert_header(("Authorization", "Bearer test"))
             .to_request();
         let resp = test::call_service(&app, req).await;
@@ -245,7 +248,7 @@ mod tests {
         );
 
         let req = test::TestRequest::get()
-            .uri(format!("/api/v1/words/{}", word.id).as_str())
+            .uri(format!("/words/{}", word.id).as_str())
             .insert_header(("Authorization", "Bearer test"))
             .to_request();
         let resp = test::call_service(&app, req).await;
