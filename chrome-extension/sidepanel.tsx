@@ -1,5 +1,5 @@
 import { AiOutlineLoading } from "react-icons/ai"
-import { HiClock, HiOutlineTrash } from "react-icons/hi"
+import { HiOutlineTrash } from "react-icons/hi"
 import { Provider } from "react-redux"
 
 import { PersistGate } from "@plasmohq/redux-persist/integration/react"
@@ -16,7 +16,7 @@ import {
   useMutation
 } from "@tanstack/react-query"
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools"
-import { motion, MotionConfig } from "framer-motion"
+import { motion } from "framer-motion"
 import { useEffect } from "react"
 
 import { removeWord, setWords } from "~words-slice"
