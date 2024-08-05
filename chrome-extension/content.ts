@@ -4,18 +4,18 @@ import { setWords } from "~words-slice"
 
 export {}
 
-const HOST =
+export const AUTH_HOST =
   "https://broccoli-go-user-pool-domain.auth.us-east-1.amazoncognito.com"
 
+export const AUTH_CLIENT_ID = "5p99s5nl7nha5tfnpik3r0rb7j"
+
 export function launchWebAuthFlow() {
-  const url =
-    `${HOST}/oauth2/authorize?` +
-    "client_id=5p99s5nl7nha5tfnpik3r0rb7j&" +
-    "response_type=code&" +
-    "redirect_uri=" +
-    encodeURIComponent(chrome.identity.getRedirectURL()) +
-    "&" +
-    `scope=${encodeURIComponent("openid profile email")}`
+  const searchParams = new URLSearchParams()
+  searchParams.append("client_id", AUTH_CLIENT_ID)
+  searchParams.append("response_type", "code")
+  searchParams.append("redirect_uri", chrome.identity.getRedirectURL())
+  searchParams.append("scope", "openid email profile")
+  const url = `${AUTH_HOST}/oauth2/authorize?${searchParams.toString()}`
   chrome.identity.launchWebAuthFlow(
     {
       url,
@@ -33,7 +33,7 @@ export function launchWebAuthFlow() {
       let code = url.searchParams.get("code")
 
       // Exchange authorization code for tokens
-      fetch(`${HOST}/oauth2/token`, {
+      fetch(`${AUTH_HOST}/oauth2/token`, {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded"

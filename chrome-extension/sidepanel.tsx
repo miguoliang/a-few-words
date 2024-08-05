@@ -14,9 +14,9 @@ import {
   useInfiniteQuery
 } from "@tanstack/react-query"
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools"
+import { useEffect } from "react"
 
 import { setWords } from "~words-slice"
-import { useEffect } from "react"
 
 const queryClient = new QueryClient()
 
@@ -55,7 +55,7 @@ const AuthenticatedView = () => {
         return undefined // no more pages
       }
     },
-    enabled: !!accessToken,
+    enabled: !!accessToken
   })
 
   useEffect(() => {
@@ -66,11 +66,18 @@ const AuthenticatedView = () => {
 
   if (!accessToken) {
     return (
-      <button
-        className="m-5 bg-black text-white"
-        onClick={() => launchWebAuthFlow()}>
-        Click to authenticate
-      </button>
+      <div className="grid grid-cols-2 gap-1">
+        <button
+          className="m-5 bg-black text-white rounded p-2"
+          onClick={() => launchWebAuthFlow()}>
+          Login
+        </button>
+        <button
+          className="m-5 bg-black text-white rounded p-2"
+          onClick={() => chrome.runtime.sendMessage({ action: "openNewTab" })}>
+          Register
+        </button>
+      </div>
     )
   }
 
@@ -91,7 +98,7 @@ const WordList = () => {
   return (
     <div className="flex flex-col gap-2">
       {words?.length === 0 && <div>No words saved yet</div>}
-      {words?.map((word, index) => <WordCell key={word.id} word={word.word} />)}
+      {words?.map((word) => <WordCell key={word.id} word={word.word} />)}
     </div>
   )
 }

@@ -1,4 +1,4 @@
-import { createWord, type Word } from "~content"
+import { createWord, AUTH_HOST, type Word, AUTH_CLIENT_ID } from "~content"
 
 export {}
 
@@ -29,3 +29,15 @@ chrome.contextMenus.onClicked.addListener((item, tab) => {
     )
   }
 })
+
+chrome.runtime.onMessage.addListener(function(request) {
+  if (request.action === 'openNewTab') {
+    const searchParams = new URLSearchParams()
+    searchParams.append("client_id", AUTH_CLIENT_ID)
+    searchParams.append("response_type", "code")
+    searchParams.append("redirect_uri", chrome.identity.getRedirectURL())
+    searchParams.append("scope", "openid email profile")
+    const url = `${AUTH_HOST}/signup?${searchParams.toString()}`;
+    chrome.tabs.create({ url });
+  }
+});
