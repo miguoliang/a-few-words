@@ -14,11 +14,12 @@ use actix_web_httpauth::{
 use engine::setup_database;
 use restful::{add, delete, list, retrieve, AppState};
 use shuttle_actix_web::ShuttleActixWeb;
+use shuttle_runtime::SecretStore;
 use sqlx::PgPool;
 
 mod cognito;
-mod restful;
 mod error;
+mod restful;
 
 #[shuttle_runtime::main]
 async fn main(
@@ -26,7 +27,12 @@ async fn main(
         local_uri = "postgres://username:password@localhost:5432/a_few_words"
     )]
     pool: PgPool,
+    #[shuttle_runtime::Secrets] secrets: SecretStore,
 ) -> ShuttleActixWeb<impl FnOnce(&mut ServiceConfig) + Send + Clone + 'static> {
+    let google_translate_api_key = secrets
+        .get("google_translate_api_key")
+        .expect("google translate api key was not found");
+
     setup_database(&pool)
         .await
         .expect("Failed to setup database");
@@ -51,6 +57,7 @@ async fn main(
                 .app_data(Data::new(AppState {
                     pool: Arc::new(pool),
                     cognito_validator: Some(Rc::new(cognito_validator)),
+                    google_translate_api_key: google_translate_api_key.clone(),
                 })),
         );
     };

@@ -7,9 +7,10 @@ use actix_web::{
     web::{self, Json, Query},
     Responder, Result,
 };
-use engine::types::{Offset, Word};
+use engine::types::{Offset, Word, MAX_WORD_LENGTH};
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
+use validator::Validate;
 
 use super::error::IntoActixError;
 
@@ -17,6 +18,7 @@ use super::error::IntoActixError;
 pub struct AppState {
     pub pool: Arc<PgPool>,
     pub cognito_validator: Option<Rc<cognito::CognitoValidator>>,
+    pub google_translate_api_key: String,
 }
 
 #[get("/words/{id}")]
@@ -27,7 +29,7 @@ pub async fn retrieve(
 ) -> Result<Json<Word>> {
     let word = engine::api::get_word(path.into_inner(), &claims.username, &state.pool)
         .await
-        .map_err(engine::types::Error::into_actix_error)?;
+        .map_err(engine::error::Error::into_actix_error)?;
     Ok(Json(word))
 }
 
@@ -50,7 +52,7 @@ pub async fn add(
     };
     let word = engine::api::create_word(new_word, &state.pool)
         .await
-        .map_err(engine::types::Error::into_actix_error)?;
+        .map_err(engine::error::Error::into_actix_error)?;
     Ok(Json(word))
 }
 
@@ -62,7 +64,7 @@ pub async fn list(
 ) -> Result<Json<Vec<Word>>> {
     let words = engine::api::list_words(&claims.username, query.into_inner(), &state.pool)
         .await
-        .map_err(engine::types::Error::into_actix_error)?;
+        .map_err(engine::error::Error::into_actix_error)?;
     Ok(Json(words))
 }
 
@@ -74,8 +76,38 @@ pub async fn delete(
 ) -> Result<impl Responder> {
     engine::api::delete_word(path.into_inner(), &claims.username, &state.pool)
         .await
-        .map_err(engine::types::Error::into_actix_error)?;
+        .map_err(engine::error::Error::into_actix_error)?;
     Ok(actix_web::HttpResponse::NoContent().finish())
+}
+
+#[derive(Deserialize, Validate)]
+struct TranslateParams {
+    #[validate(length(min = 0, max = MAX_WORD_LENGTH))]
+    text: String,
+}
+
+#[derive(Serialize, Deserialize)]
+struct TranslateResponse {
+    text: String,
+}
+
+#[get("/translate")]
+pub async fn translate(
+    state: web::Data<AppState>,
+    query: Query<TranslateParams>,
+) -> Result<Json<TranslateResponse>> {
+    let text = query.text.clone();
+    let translated_text = engine::translate::translate_text(
+        &state.google_translate_api_key,
+        &text,
+        engine::translate::Language::Chinese,
+        engine::translate::Language::English,
+    )
+    .await
+    .map_err(engine::error::Error::into_actix_error)?;
+    Ok(Json(TranslateResponse {
+        text: translated_text,
+    }))
 }
 
 #[cfg(test)]
@@ -85,7 +117,9 @@ mod tests {
     use actix_web::{dev::ServiceRequest, test, App, Error, HttpMessage};
     use actix_web_httpauth::{extractors::bearer::BearerAuth, middleware::HttpAuthentication};
     use engine::setup_database;
+    use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
     use sqlx::postgres::PgPoolOptions;
+    use tokio::fs;
     use web::Data;
 
     async fn get_connection_pool() -> PgPool {
@@ -103,6 +137,7 @@ mod tests {
         AppState {
             pool: Arc::new(get_connection_pool().await),
             cognito_validator: None,
+            google_translate_api_key: "test".to_string(),
         }
     }
 
@@ -258,5 +293,42 @@ mod tests {
             "Response Status Code: {:?}",
             resp.status()
         );
+    }
+
+    #[derive(Debug, Deserialize)]
+    struct Secrets {
+        google_translate_api_key: String,
+    }
+
+    #[actix_web::test]
+    async fn test_translate_api() {
+        let toml_str = fs::read_to_string("Secrets.toml").await.unwrap();
+        let toml: Secrets = toml::from_str(&toml_str).unwrap();
+
+        let app = test::init_service(
+            App::new()
+                .app_data(Data::new(AppState {
+                    pool: Arc::new(get_connection_pool().await),
+                    cognito_validator: None,
+                    google_translate_api_key: toml.google_translate_api_key.clone(),
+                }))
+                .wrap(HttpAuthentication::bearer(validator))
+                .service(translate),
+        )
+        .await;
+
+        let encoded_text = utf8_percent_encode("你好", NON_ALPHANUMERIC).to_string();
+        let req = test::TestRequest::get()
+            .uri(format!("/translate?text={encoded_text}").as_str())
+            .insert_header(("Authorization", "Bearer test"))
+            .to_request();
+        let resp = test::call_service(&app, req).await;
+        assert!(
+            resp.status().is_success(),
+            "Response Status Code: {:?}",
+            resp.status()
+        );
+        let resp: TranslateResponse = test::read_body_json(resp).await;
+        assert_eq!(resp.text, "Hello");
     }
 }

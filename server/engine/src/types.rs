@@ -3,9 +3,14 @@ use regex::Regex;
 use sqlx::{prelude::*, types::chrono};
 use validator::Validate;
 
-static NOT_BLANK: Lazy<Regex> = Lazy::new(|| Regex::new(r"^\S+$").unwrap());
+pub const MAX_WORD_LENGTH: u64 = 500;
+pub const MAX_PAGE_SIZE: i32 = 100;
+pub const MAX_USERNAME_LENGTH: u64 = 100;
 
-pub static USERNAME_LIKE: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[a-zA-Z0-9]{3,100}$").unwrap());
+static NOT_BLANK: Lazy<Regex> = Lazy::new(|| Regex::new(r"\S+").unwrap());
+
+pub static USERNAME_LIKE: Lazy<Regex> =
+    Lazy::new(|| Regex::new(format!("^[a-zA-Z0-9]{{3,{MAX_USERNAME_LENGTH}}}$").as_str()).unwrap());
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
@@ -13,7 +18,7 @@ use serde::{Deserialize, Serialize};
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Validate)]
 pub struct NewWord {
-    #[validate(length(min = 1, max = 100), regex(path = *NOT_BLANK))]
+    #[validate(length(min = 1, max = MAX_WORD_LENGTH), regex(path = *NOT_BLANK))]
     pub word: String,
     #[validate(url)]
     pub url: Option<String>,
@@ -26,7 +31,7 @@ pub struct NewWord {
 pub struct Offset {
     #[validate(range(min = 0))]
     pub offset: Option<i32>,
-    #[validate(range(min = 1, max = 100))]
+    #[validate(range(min = 1, max = MAX_PAGE_SIZE))]
     pub size: Option<i32>,
 }
 
@@ -39,36 +44,6 @@ pub struct Word {
     pub username: String,
     pub created_at: chrono::NaiveDateTime,
     pub updated_at: chrono::NaiveDateTime,
-}
-
-#[derive(thiserror::Error, Debug)]
-pub enum Error {
-    #[error("Validation error: {0}")]
-    Validation(#[from] validator::ValidationErrors),
-    #[error("Row not found")]
-    RowNotFound,
-    #[error("Conflict: {0}")]
-    Conflict(String),
-    #[error("Migration error: {0}")]
-    Migration(#[from] sqlx::migrate::MigrateError),
-    #[error("Unexpected error: {0}")]
-    Unexpected(String),
-}
-
-impl From<sqlx::Error> for Error {
-    fn from(e: sqlx::Error) -> Self {
-        match e {
-            sqlx::Error::RowNotFound => Error::RowNotFound,
-            sqlx::Error::Database(db_err) => {
-                if db_err.is_unique_violation() {
-                    Error::Conflict(db_err.message().to_string())
-                } else {
-                    Error::Unexpected(db_err.message().to_string())
-                }
-            }
-            _ => Error::Unexpected(e.to_string()),
-        }
-    }
 }
 
 #[cfg(test)]
@@ -89,6 +64,16 @@ mod tests {
             assert!(
                 NOT_BLANK.is_match(case),
                 "Expected validation to pass for input: {}",
+                case
+            );
+        }
+
+        let invalid_cases = vec!["", " ", "  ", "\t", "\n", "\r", "\r\n"];
+
+        for case in invalid_cases {
+            assert!(
+                !NOT_BLANK.is_match(case),
+                "Expected validation to fail for input: {}",
                 case
             );
         }

@@ -1,7 +1,7 @@
 CREATE TABLE words (
     id SERIAL PRIMARY KEY,
-    word VARCHAR(255) NOT NULL,
-    url VARCHAR(255),
+    word VARCHAR(1000) NOT NULL,
+    url VARCHAR(2000),
     username VARCHAR(255) NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT now(),
     updated_at TIMESTAMP NOT NULL DEFAULT now(),

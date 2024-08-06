@@ -1,7 +1,11 @@
 use sqlx::PgPool;
 use validator::Validate;
 
-use super::types::{Error, NewWord, Offset, Word};
+#[cfg(feature = "translate")]
+use crate::translate::{translate_text, Language};
+
+use super::error::Error;
+use super::types::{NewWord, Offset, Word};
 
 pub async fn create_word(new_word: NewWord, pool: &PgPool) -> Result<Word, Error> {
     new_word.validate()?;
@@ -28,12 +32,14 @@ pub async fn get_word(id: i32, username: &str, pool: &PgPool) -> Result<Word, Er
 
 pub async fn list_words(username: &str, offset: Offset, pool: &PgPool) -> Result<Vec<Word>, Error> {
     offset.validate()?;
-    let words = sqlx::query_as("SELECT * FROM words WHERE username = $1 ORDER BY created_at OFFSET $2 LIMIT $3")
-        .bind(username)
-        .bind(offset.offset.unwrap_or(0))
-        .bind(offset.size.unwrap_or(10))
-        .fetch_all(pool)
-        .await?;
+    let words = sqlx::query_as(
+        "SELECT * FROM words WHERE username = $1 ORDER BY created_at OFFSET $2 LIMIT $3",
+    )
+    .bind(username)
+    .bind(offset.offset.unwrap_or(0))
+    .bind(offset.size.unwrap_or(10))
+    .fetch_all(pool)
+    .await?;
     Ok(words)
 }
 
@@ -47,6 +53,11 @@ pub async fn delete_word(id: i32, username: &str, pool: &PgPool) -> Result<(), E
         .execute(pool)
         .await?;
     Ok(())
+}
+
+#[cfg(feature = "translate")]
+pub async fn translate_from_chinese_to_english(key: &str, word: &str) -> Result<String, Error> {
+    translate_text(key, word, Language::Chinese, Language::English).await
 }
 
 #[cfg(test)]
@@ -66,6 +77,15 @@ pub mod tests {
             .unwrap();
         setup_database(&pool).await.unwrap();
         pool
+    }
+
+    #[cfg(feature = "translate")]
+    #[tokio::test]
+    async fn test_translate_from_chinese_to_english() {
+        let word = "你好";
+        let key = std::env::var("GOOGLE_TRANSLATE_API_KEY").unwrap();
+        let translation = translate_from_chinese_to_english(&key, word).await.unwrap();
+        assert_eq!(translation, "Hello");
     }
 
     #[tokio::test]

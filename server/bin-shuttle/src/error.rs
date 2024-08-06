@@ -1,5 +1,5 @@
 use actix_web::{error, error::Error as ActixError};
-use engine::types::Error as EngineError;
+use engine::error::Error as EngineError;
 
 pub(crate) trait IntoActixError {
     fn into_actix_error(self) -> ActixError;
