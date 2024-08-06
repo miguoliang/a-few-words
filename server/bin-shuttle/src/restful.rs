@@ -100,8 +100,8 @@ pub async fn translate(
     let translated_text = engine::translate::translate_text(
         &state.google_translate_api_key,
         &text,
-        engine::translate::Language::Chinese,
         engine::translate::Language::English,
+        engine::translate::Language::Chinese,
     )
     .await
     .map_err(engine::error::Error::into_actix_error)?;
@@ -317,7 +317,7 @@ mod tests {
         )
         .await;
 
-        let encoded_text = utf8_percent_encode("你好", NON_ALPHANUMERIC).to_string();
+        let encoded_text = utf8_percent_encode("have a good time", NON_ALPHANUMERIC).to_string();
         let req = test::TestRequest::get()
             .uri(format!("/translate?text={encoded_text}").as_str())
             .insert_header(("Authorization", "Bearer test"))
@@ -329,6 +329,6 @@ mod tests {
             resp.status()
         );
         let resp: TranslateResponse = test::read_body_json(resp).await;
-        assert_eq!(resp.text, "Hello");
+        assert_eq!(resp.text, "玩的很开心");
     }
 }

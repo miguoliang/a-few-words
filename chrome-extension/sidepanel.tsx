@@ -1,11 +1,13 @@
 import { AiOutlineLoading } from "react-icons/ai"
+import { FaCheck } from "react-icons/fa"
 import { HiOutlineTrash } from "react-icons/hi"
-import { IoEarth } from "react-icons/io5"
+import { IoCopyOutline, IoEarth } from "react-icons/io5"
+import { RiTranslate } from "react-icons/ri"
 import { Provider } from "react-redux"
 
 import { PersistGate } from "@plasmohq/redux-persist/integration/react"
 
-import { deleteWord, fetchWords, launchWebAuthFlow } from "~content"
+import { deleteWord, fetchWords, launchWebAuthFlow, translate } from "~content"
 import { persistor, store, useAppDispatch, useAppSelector } from "~store"
 
 import "~style.css"
@@ -14,11 +16,12 @@ import {
   QueryClient,
   QueryClientProvider,
   useInfiniteQuery,
-  useMutation
+  useMutation,
+  useQueryClient
 } from "@tanstack/react-query"
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools"
 import { motion } from "framer-motion"
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 
 import { removeWord, setWords } from "~words-slice"
 
@@ -116,6 +119,15 @@ interface WordProps {
 }
 
 const WordCell = ({ id, word, url }: WordProps) => {
+  return (
+    <div className="flex flex-col bg-gray-200 p-2 rounded-lg gap-1">
+      <WordToolbar id={id} word={word} url={url} />
+      <span>{word}</span>
+    </div>
+  )
+}
+
+const WordToolbar = ({ id, word, url }: WordProps) => {
   const dispatch = useAppDispatch()
   const mutation = useMutation({
     mutationFn: (id: number) => deleteWord(id),
@@ -124,41 +136,69 @@ const WordCell = ({ id, word, url }: WordProps) => {
     }
   })
   return (
-    <div className="flex justify-between items-center rounded bg-gray-200 p-1">
-      <span>{word}</span>
-      <div className="flex gap-1">
-        <button
-          type="button"
-          onClick={async () => await mutation.mutateAsync(id)}>
-          {mutation.isIdle && <HiOutlineTrash />}
-          {mutation.isPending && (
-            <motion.div
-              animate={{ rotate: 360 }}
-              transition={{
-                duration: 1,
-                bounce: 0,
-                repeat: Infinity,
-                type: "spring",
-                delay: 0
-              }}>
-              <AiOutlineLoading />
-            </motion.div>
-          )}
-        </button>
-        {url && (
-          <button
-            type="button"
-            onClick={() =>
-              chrome.runtime.sendMessage({
-                action: "openUrl",
-                url
-              })
-            }>
-            <IoEarth />
-          </button>
+    <div className="flex justify-end gap-2">
+      <TranslateButton text={word} />
+      <button
+        type="button"
+        onClick={async () => await mutation.mutateAsync(id)}>
+        {mutation.isIdle && <HiOutlineTrash />}
+        {mutation.isPending && (
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{
+              duration: 1,
+              bounce: 0,
+              repeat: Infinity,
+              type: "spring",
+              delay: 0
+            }}>
+            <AiOutlineLoading />
+          </motion.div>
         )}
-      </div>
+      </button>
+      <button
+        type="button"
+        disabled={!url}
+        onClick={() =>
+          chrome.runtime.sendMessage({
+            action: "openUrl",
+            url
+          })
+        }>
+        <IoEarth />
+      </button>
+      <CopyButton text={word} />
     </div>
+  )
+}
+
+const CopyButton = ({ text }: { text: string }) => {
+  const [copied, setCopied] = useState(false)
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        navigator.clipboard.writeText(text)
+        setCopied(true)
+        setTimeout(() => setCopied(false), 1000)
+      }}>
+      {copied ? <FaCheck /> : <IoCopyOutline />}
+    </button>
+  )
+}
+
+const TranslateButton = ({ text }: { text: string }) => {
+  const queryClient = useQueryClient()
+  return (
+    <button type="button" onClick={async () => {
+      const response = await queryClient.fetchQuery({
+        queryKey: ["translate", text],
+        queryFn: () => translate(text),
+      })
+      console.log(response)
+    }}>
+      <RiTranslate />
+    </button>
   )
 }
 

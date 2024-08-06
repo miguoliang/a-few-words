@@ -108,7 +108,6 @@ chrome.contextMenus.onClicked.addListener((item, tab) => {
       },
       async (results) => {
         const ret = results[0]?.result
-        console.log(ret, "ttt")
         if (!ret) return
         await createWord({ word: ret.text, url: ret.highlightUrl })
       }

@@ -56,8 +56,8 @@ pub async fn delete_word(id: i32, username: &str, pool: &PgPool) -> Result<(), E
 }
 
 #[cfg(feature = "translate")]
-pub async fn translate_from_chinese_to_english(key: &str, word: &str) -> Result<String, Error> {
-    translate_text(key, word, Language::Chinese, Language::English).await
+pub async fn translate_from_english_to_chinese(key: &str, word: &str) -> Result<String, Error> {
+    translate_text(key, word, Language::English, Language::Chinese).await
 }
 
 #[cfg(test)]
@@ -81,11 +81,12 @@ pub mod tests {
 
     #[cfg(feature = "translate")]
     #[tokio::test]
-    async fn test_translate_from_chinese_to_english() {
-        let word = "你好";
+    async fn test_translate_from_english_to_chinese() {
+        dotenv::dotenv().ok();
+        let word = "hello";
         let key = std::env::var("GOOGLE_TRANSLATE_API_KEY").unwrap();
-        let translation = translate_from_chinese_to_english(&key, word).await.unwrap();
-        assert_eq!(translation, "Hello");
+        let translation = translate_from_english_to_chinese(&key, word).await.unwrap();
+        assert_eq!(translation, "你好");
     }
 
     #[tokio::test]

@@ -12,7 +12,7 @@ use actix_web_httpauth::{
     middleware::HttpAuthentication,
 };
 use engine::setup_database;
-use restful::{add, delete, list, retrieve, AppState};
+use restful::{add, delete, list, retrieve, translate, AppState};
 use shuttle_actix_web::ShuttleActixWeb;
 use shuttle_runtime::SecretStore;
 use sqlx::PgPool;
@@ -54,6 +54,7 @@ async fn main(
                 .service(add)
                 .service(list)
                 .service(delete)
+                .service(translate)
                 .app_data(Data::new(AppState {
                     pool: Arc::new(pool),
                     cognito_validator: Some(Rc::new(cognito_validator)),

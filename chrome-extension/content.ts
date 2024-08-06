@@ -129,6 +129,31 @@ export const deleteWord = async (id: number) => {
   }
 }
 
+export type TranslateResponse = {
+  text: string
+}
+
+export const translate = async (text: string) => {
+  try {
+    const response = await fetch(
+      `http://localhost:8000/api/v1/translate?text=${text}`,
+      {
+        headers: {
+          Authorization: `Bearer ${store.getState().auth.access_token}`
+        }
+      })
+    if (response.ok) {
+      return await response.json() as TranslateResponse
+    } else if (response.status === 401) {
+      store.dispatch(setLogout())
+    } else {
+      console.error("Error translating text:", response.statusText)
+    }
+  } catch (error) {
+    console.error("Error translating text:", error)
+  }
+}
+
 export type Word = {
   id?: number
   word: string
