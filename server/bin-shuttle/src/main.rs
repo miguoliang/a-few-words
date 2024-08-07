@@ -33,14 +33,26 @@ async fn main(
         .get("google_translate_api_key")
         .expect("google translate api key was not found");
 
+    let cognito_region = secrets
+        .get("cognito_region")
+        .expect("cognito region was not found");
+
+    let cognito_user_pool_id = secrets
+        .get("cognito_user_pool_id")
+        .expect("cognito user pool id was not found");
+
+    let cognito_client_id = secrets
+        .get("cognito_client_id")
+        .expect("cognito client id was not found");
+
     setup_database(&pool)
         .await
         .expect("Failed to setup database");
 
     let cognito_validator = cognito::CognitoValidator::new(
-        "us-east-1",
-        "us-east-1_Qbzi9lvVB",
-        "5p99s5nl7nha5tfnpik3r0rb7j",
+        &cognito_region,
+        &cognito_user_pool_id,
+        &cognito_client_id,
     )
     .await
     .expect("Failed to create Cognito validator");

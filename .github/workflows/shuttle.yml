@@ -22,3 +22,8 @@ jobs:
           working-directory: "server"
           name: "a-few-words"
           no-test: true
+          secrets: |
+            google_translate_api_key = '${{ secrets.GOOGLE_TRANSLATE_API_KEY }}'
+            cognito_user_pool_id = '${{ secrets.COGNITO_USER_POOL_ID }}'
+            cognito_client_id = '${{ secrets.COGNITO_CLIENT_ID }}'
+            cognito_region = '${{ secrets.COGNITO_REGION }}'
