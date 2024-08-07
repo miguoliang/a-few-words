@@ -92,6 +92,9 @@ export const createWord = async (word: Word) => {
       body: JSON.stringify(word)
     })
     if (response.ok) {
+      const word = await response.json()
+      const translation = await translate(word.word)
+      word.definition = translation.text
       store.dispatch(
         setWords([...store.getState().words.words, await response.json()])
       )
@@ -157,6 +160,7 @@ export const translate = async (text: string) => {
 export type Word = {
   id?: number
   word: string
+  definition?: string
   url?: string
   username?: string
   created_at?: number

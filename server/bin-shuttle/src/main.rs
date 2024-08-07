@@ -49,13 +49,10 @@ async fn main(
         .await
         .expect("Failed to setup database");
 
-    let cognito_validator = cognito::CognitoValidator::new(
-        &cognito_region,
-        &cognito_user_pool_id,
-        &cognito_client_id,
-    )
-    .await
-    .expect("Failed to create Cognito validator");
+    let cognito_validator =
+        cognito::CognitoValidator::new(&cognito_region, &cognito_user_pool_id, &cognito_client_id)
+            .await
+            .expect("Failed to create Cognito validator");
 
     let config = move |cfg: &mut ServiceConfig| {
         cfg.service(
@@ -98,5 +95,24 @@ async fn validator(
             let ae = AuthenticationError::new(Bearer::default());
             Err((actix_web::Error::from(ae), req))
         }
+    }
+}
+
+#[cfg(test)]
+pub mod test_utils {
+    use serde::Deserialize;
+    use tokio::fs;
+
+    #[derive(Debug, Deserialize)]
+    pub struct Secrets {
+        pub google_translate_api_key: String,
+        pub cognito_user_pool_id: String,
+        pub cognito_client_id: String,
+        pub cognito_region: String,
+    }
+
+    pub async fn get_secrets() -> Secrets {
+        let toml_str = fs::read_to_string("Secrets.toml").await.unwrap();
+        toml::from_str(&toml_str).unwrap()
     }
 }

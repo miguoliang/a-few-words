@@ -9,10 +9,11 @@ use super::types::{NewWord, Offset, Word};
 
 pub async fn create_word(new_word: NewWord, pool: &PgPool) -> Result<Word, Error> {
     new_word.validate()?;
-    let word = sqlx::query_as("INSERT INTO words(word, url, username) VALUES ($1, $2, $3) RETURNING id, word, url, username, created_at, updated_at")
+    let word = sqlx::query_as("INSERT INTO words(word, url, username, definition) VALUES ($1, $2, $3, $4) RETURNING id, word, definition, url, username, created_at, updated_at")
         .bind(&new_word.word)
         .bind(&new_word.url)
         .bind(&new_word.username)
+        .bind(&new_word.definition)
         .fetch_one(pool)
         .await?;
     Ok(word)
@@ -94,6 +95,7 @@ pub mod tests {
         let pool = get_connection_pool().await;
         let new_word = NewWord {
             word: "test_create_word".to_string(),
+            definition: None,
             url: None,
             username: "test".to_string(),
         };
@@ -108,6 +110,7 @@ pub mod tests {
         let pool = get_connection_pool().await;
         let new_word = NewWord {
             word: "test_get_word".to_string(),
+            definition: None,
             url: None,
             username: "test".to_string(),
         };
@@ -121,6 +124,7 @@ pub mod tests {
         let pool = get_connection_pool().await;
         let new_word = NewWord {
             word: "test_list_words".to_string(),
+            definition: None,
             url: None,
             username: "test".to_string(),
         };
@@ -143,6 +147,7 @@ pub mod tests {
         let pool = get_connection_pool().await;
         let new_word = NewWord {
             word: "test_delete_word".to_string(),
+            definition: None,
             url: None,
             username: "test".to_string(),
         };

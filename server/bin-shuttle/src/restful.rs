@@ -36,6 +36,7 @@ pub async fn retrieve(
 #[derive(Serialize, Deserialize)]
 pub struct NewWord {
     word: String,
+    definition: Option<String>,
     url: Option<String>,
 }
 
@@ -47,6 +48,7 @@ pub async fn add(
 ) -> Result<Json<Word>> {
     let new_word = engine::types::NewWord {
         word: word_new.word.clone(),
+        definition: word_new.definition.clone(),
         url: word_new.url.clone(),
         username: claims.username.clone(),
     };
@@ -113,13 +115,14 @@ pub async fn translate(
 #[cfg(test)]
 mod tests {
 
+    use crate::test_utils;
+
     use super::*;
     use actix_web::{dev::ServiceRequest, test, App, Error, HttpMessage};
     use actix_web_httpauth::{extractors::bearer::BearerAuth, middleware::HttpAuthentication};
     use engine::setup_database;
     use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
     use sqlx::postgres::PgPoolOptions;
-    use tokio::fs;
     use web::Data;
 
     async fn get_connection_pool() -> PgPool {
@@ -165,6 +168,7 @@ mod tests {
             .uri("/words")
             .set_json(NewWord {
                 word: "test_create_word_api".to_string(),
+                definition: None,
                 url: None,
             })
             .insert_header(("Authorization", "Bearer test"))
@@ -192,6 +196,7 @@ mod tests {
             .uri("/words")
             .set_json(NewWord {
                 word: "test_retrieve_word_api".to_string(),
+                definition: None,
                 url: None,
             })
             .insert_header(("Authorization", "Bearer test"))
@@ -225,6 +230,7 @@ mod tests {
             .uri("/words")
             .set_json(NewWord {
                 word: "test_list_words_api".to_string(),
+                definition: None,
                 url: None,
             })
             .insert_header(("Authorization", "Bearer test"))
@@ -265,6 +271,7 @@ mod tests {
             .uri("/words")
             .set_json(NewWord {
                 word: "test_delete_word_api".to_string(),
+                definition: None,
                 url: None,
             })
             .insert_header(("Authorization", "Bearer test"))
@@ -295,15 +302,9 @@ mod tests {
         );
     }
 
-    #[derive(Debug, Deserialize)]
-    struct Secrets {
-        google_translate_api_key: String,
-    }
-
     #[actix_web::test]
     async fn test_translate_api() {
-        let toml_str = fs::read_to_string("Secrets.toml").await.unwrap();
-        let toml: Secrets = toml::from_str(&toml_str).unwrap();
+        let toml = crate::test_utils::get_secrets().await;
 
         let app = test::init_service(
             App::new()

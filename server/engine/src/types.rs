@@ -4,6 +4,8 @@ use sqlx::{prelude::*, types::chrono};
 use validator::Validate;
 
 pub const MAX_WORD_LENGTH: u64 = 500;
+pub const MAX_DEFINITION_LENGTH: u64 = 2000;
+pub const MAX_URL_LENGTH: u64 = 2000;
 pub const MAX_PAGE_SIZE: i32 = 100;
 pub const MAX_USERNAME_LENGTH: u64 = 100;
 
@@ -20,7 +22,9 @@ use serde::{Deserialize, Serialize};
 pub struct NewWord {
     #[validate(length(min = 1, max = MAX_WORD_LENGTH), regex(path = *NOT_BLANK))]
     pub word: String,
-    #[validate(url)]
+    #[validate(length(max = MAX_DEFINITION_LENGTH))]
+    pub definition: Option<String>,
+    #[validate(length(max = MAX_URL_LENGTH), url)]
     pub url: Option<String>,
     #[validate(regex(path = *USERNAME_LIKE))]
     pub username: String,
@@ -40,6 +44,7 @@ pub struct Offset {
 pub struct Word {
     pub id: i32,
     pub word: String,
+    pub definition: Option<String>,
     pub url: Option<String>,
     pub username: String,
     pub created_at: chrono::NaiveDateTime,
