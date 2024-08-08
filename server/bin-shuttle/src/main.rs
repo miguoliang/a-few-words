@@ -1,4 +1,4 @@
-use std::{rc::Rc, sync::Arc};
+use std::sync::Arc;
 
 use actix_web::{
     dev::ServiceRequest,
@@ -16,6 +16,7 @@ use restful::{add, delete, list, retrieve, translate, AppState};
 use shuttle_actix_web::ShuttleActixWeb;
 use shuttle_runtime::SecretStore;
 use sqlx::PgPool;
+use tokio::sync::Mutex;
 
 mod cognito;
 mod error;
@@ -49,10 +50,13 @@ async fn main(
         .await
         .expect("Failed to setup database");
 
-    let cognito_validator =
+    let cognito_validator = Arc::new(Mutex::new(
         cognito::CognitoValidator::new(&cognito_region, &cognito_user_pool_id, &cognito_client_id)
             .await
-            .expect("Failed to create Cognito validator");
+            .expect("Failed to create Cognito validator"),
+    ));
+
+    tokio::spawn(scheduled_update_jwk(cognito_validator.clone()));
 
     let config = move |cfg: &mut ServiceConfig| {
         cfg.service(
@@ -66,13 +70,20 @@ async fn main(
                 .service(translate)
                 .app_data(Data::new(AppState {
                     pool: Arc::new(pool),
-                    cognito_validator: Some(Rc::new(cognito_validator)),
+                    cognito_validator: Some(cognito_validator),
                     google_translate_api_key: google_translate_api_key.clone(),
                 })),
         );
     };
 
     Ok(config.into())
+}
+
+async fn scheduled_update_jwk(cognito_validator: Arc<Mutex<cognito::CognitoValidator>>) {
+    loop {
+        tokio::time::sleep(tokio::time::Duration::from_secs(3600 * 2)).await;
+        cognito_validator.lock().await.update_jwk().await.unwrap();
+    }
 }
 
 async fn validator(
@@ -85,6 +96,7 @@ async fn validator(
         .cognito_validator
         .clone()
         .unwrap();
+    let cognito_validator = cognito_validator.lock().await;
     let token = credentials.token();
     match cognito_validator.validate_token(token) {
         Ok(claims) => {

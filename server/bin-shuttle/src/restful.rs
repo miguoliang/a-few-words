@@ -1,4 +1,4 @@
-use std::{rc::Rc, sync::Arc};
+use std::sync::Arc;
 
 use super::cognito;
 use super::cognito::Claims;
@@ -10,6 +10,7 @@ use actix_web::{
 use engine::types::{Offset, Word, MAX_WORD_LENGTH};
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
+use tokio::sync::Mutex;
 use validator::Validate;
 
 use super::error::IntoActixError;
@@ -17,7 +18,7 @@ use super::error::IntoActixError;
 #[derive(Clone)]
 pub struct AppState {
     pub pool: Arc<PgPool>,
-    pub cognito_validator: Option<Rc<cognito::CognitoValidator>>,
+    pub cognito_validator: Option<Arc<Mutex<cognito::CognitoValidator>>>,
     pub google_translate_api_key: String,
 }
 

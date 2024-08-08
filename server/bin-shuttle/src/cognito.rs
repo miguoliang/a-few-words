@@ -56,6 +56,12 @@ impl CognitoValidator {
 
         Ok(token_data.claims)
     }
+
+    pub async fn update_jwk(&mut self) -> Result<(), reqwest::Error> {
+        let jwks_url = format!("{}/.well-known/jwks.json", self.issuer);
+        self.jwks = fetch_jwks(&jwks_url).await?;
+        Ok(())
+    }
 }
 
 async fn fetch_jwks(jwks_url: &str) -> Result<Jwks, reqwest::Error> {
