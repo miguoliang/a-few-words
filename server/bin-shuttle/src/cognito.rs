@@ -85,6 +85,7 @@ struct Jwks {
 #[cfg(test)]
 mod tests {
 
+    #[ignore = "requires valid token"]
     #[tokio::test]
     async fn test_cognito_validator() {
         use crate::cognito::CognitoValidator;
