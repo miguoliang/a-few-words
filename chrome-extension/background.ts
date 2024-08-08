@@ -1,4 +1,6 @@
+import { setLogout, setTokens } from "~auth-slice"
 import { AUTH_CLIENT_ID, AUTH_HOST, createWord, translate } from "~content"
+import { store } from "~store"
 
 export {}
 
@@ -9,7 +11,31 @@ chrome.runtime.onInstalled.addListener(async () => {
     contexts: ["selection"]
   })
   chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true })
+  setInterval(refreshToken, 10000)
 })
+
+async function refreshToken() {
+  const refresh_token = store.getState().auth.refresh_token
+  const access_token = store.getState().auth.access_token
+  const searchParams = new URLSearchParams()
+  searchParams.append("client_id", AUTH_CLIENT_ID)
+  searchParams.append("grant_type", "refresh_token")
+  searchParams.append("refresh_token", refresh_token)
+  if (!access_token) return
+  const response = await fetch(`${AUTH_HOST}/oauth2/token`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded"
+    },
+    body: searchParams
+  })
+  if (response.ok) {
+    const data = await response.json()
+    store.dispatch(setTokens({ ...data, refresh_token }))
+  } else {
+    store.dispatch(setLogout())
+  }
+}
 
 // Open a new search tab when the user clicks a context menu
 chrome.contextMenus.onClicked.addListener((item, tab) => {
@@ -110,7 +136,11 @@ chrome.contextMenus.onClicked.addListener((item, tab) => {
         const ret = results[0]?.result
         if (!ret) return
         const translation = await translate(ret.text)
-        await createWord({ word: ret.text, url: ret.highlightUrl, definition: translation?.text })
+        await createWord({
+          word: ret.text,
+          url: ret.highlightUrl,
+          definition: translation?.text
+        })
       }
     )
   }
