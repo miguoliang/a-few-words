@@ -11,7 +11,7 @@ chrome.runtime.onInstalled.addListener(async () => {
     contexts: ["selection"]
   })
   chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true })
-  setInterval(refreshToken, 10000)
+  setInterval(refreshToken, 1000 * 60 * 30)
 })
 
 async function refreshToken() {
