@@ -115,8 +115,6 @@ pub async fn translate(
 #[cfg(test)]
 mod tests {
 
-    use crate::test_utils;
-
     use super::*;
     use actix_web::{dev::ServiceRequest, test, App, Error, HttpMessage};
     use actix_web_httpauth::{extractors::bearer::BearerAuth, middleware::HttpAuthentication};
