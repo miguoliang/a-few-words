@@ -93,11 +93,7 @@ export const createWord = async (word: Word) => {
     })
     if (response.ok) {
       const word = await response.json()
-      const translation = await translate(word.word)
-      word.definition = translation.text
-      store.dispatch(
-        setWords([...store.getState().words.words, await response.json()])
-      )
+      store.dispatch(setWords([...store.getState().words.words, word]))
     } else if (response.status === 401) {
       store.dispatch(setLogout())
     } else {
@@ -118,9 +114,7 @@ export const deleteWord = async (id: number) => {
     })
     if (response.ok) {
       store.dispatch(
-        setWords(
-          store.getState().words.words.filter((word) => word.id !== id)
-        )
+        setWords(store.getState().words.words.filter((word) => word.id !== id))
       )
     } else if (response.status === 401) {
       store.dispatch(setLogout())
@@ -144,9 +138,10 @@ export const translate = async (text: string) => {
         headers: {
           Authorization: `Bearer ${store.getState().auth.access_token}`
         }
-      })
+      }
+    )
     if (response.ok) {
-      return await response.json() as TranslateResponse
+      return (await response.json()) as TranslateResponse
     } else if (response.status === 401) {
       store.dispatch(setLogout())
     } else {

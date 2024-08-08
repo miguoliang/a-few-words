@@ -1,4 +1,4 @@
-import { AUTH_CLIENT_ID, AUTH_HOST, createWord } from "~content"
+import { AUTH_CLIENT_ID, AUTH_HOST, createWord, translate } from "~content"
 
 export {}
 
@@ -109,7 +109,8 @@ chrome.contextMenus.onClicked.addListener((item, tab) => {
       async (results) => {
         const ret = results[0]?.result
         if (!ret) return
-        await createWord({ word: ret.text, url: ret.highlightUrl })
+        const translation = await translate(ret.text)
+        await createWord({ word: ret.text, url: ret.highlightUrl, definition: translation?.text })
       }
     )
   }
