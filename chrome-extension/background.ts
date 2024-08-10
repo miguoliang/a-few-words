@@ -157,5 +157,7 @@ chrome.runtime.onMessage.addListener(function (request) {
     searchParams.append("scope", "openid email profile")
     const url = `${AUTH_HOST}/signup?${searchParams.toString()}`
     chrome.tabs.create({ url })
+  } else if (request.action === "logout") {
+    store.dispatch(setLogout())
   }
 })

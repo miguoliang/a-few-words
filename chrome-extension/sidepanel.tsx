@@ -1,7 +1,9 @@
+import banner from "data-base64:~assets/banner.webp"
 import { AiOutlineLoading } from "react-icons/ai"
 import { FaCheck } from "react-icons/fa"
 import { HiOutlineTrash } from "react-icons/hi"
 import { IoCopyOutline, IoEarth } from "react-icons/io5"
+import { PiSignOutBold } from "react-icons/pi"
 import { Provider } from "react-redux"
 
 import { PersistGate } from "@plasmohq/redux-persist/integration/react"
@@ -71,16 +73,14 @@ const AuthenticatedView = () => {
 
   if (!accessToken) {
     return (
-      <div className="grid grid-cols-2 gap-1">
+      <div className="flex flex-col items-stretch justify-center gap-8 px-8 -mt-16 h-[100vh]">
+        <div className="overflow-hidden h-[200px] rounded-3xl border-[5px] border-black border-solid">
+          <img src={banner} alt="logo" className="mt-[-30px]" />
+        </div>
         <button
-          className="m-5 bg-black text-white rounded p-2"
+          className="m-5 bg-black block text-white rounded-full text-xl p-3"
           onClick={() => launchWebAuthFlow()}>
-          Login
-        </button>
-        <button
-          className="m-5 bg-black text-white rounded p-2"
-          onClick={() => chrome.runtime.sendMessage({ action: "register" })}>
-          Register
+          💪<span className="ml-5">Get Started</span>
         </button>
       </div>
     )
@@ -88,6 +88,7 @@ const AuthenticatedView = () => {
 
   return (
     <div className="flex flex-col gap-2 p-2">
+      <Header accessToken={accessToken} />
       <WordList />
       {isFetching && <div>Loading...</div>}
       {isFetchingNextPage && <div>Loading next page...</div>}
@@ -189,6 +190,27 @@ const CopyButton = ({ text }: { text: string }) => {
       }}>
       {copied ? <FaCheck /> : <IoCopyOutline />}
     </button>
+  )
+}
+
+interface HeaderProps {
+  accessToken: string
+}
+
+const Header = ({ accessToken }: HeaderProps) => {
+  const jwt = accessToken.split(".")[1]
+  const decoded = JSON.parse(atob(jwt))
+  return (
+    <div className="flex justify-between items-center p-2">
+      <span className="text-lg">
+        <span className="font-bold">Hey!</span> 👋 {decoded.username}
+      </span>
+      <button
+        className="text-gray-500 text-lg"
+        onClick={() => chrome.runtime.sendMessage({ action: "logout" })}>
+        <PiSignOutBold />
+      </button>
+    </div>
   )
 }
 
