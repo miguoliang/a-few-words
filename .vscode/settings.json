@@ -9,5 +9,9 @@
     "sonarlint.connectedMode.project": {
         "connectionId": "miguoliang",
         "projectKey": "miguoliang_a-few-words"
-    }
+    },
+    "[rust]": {
+        "editor.defaultFormatter": "rust-lang.rust-analyzer",
+        "editor.formatOnSave": true
+    },
 }
