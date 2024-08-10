@@ -23,7 +23,7 @@ import { motion } from "framer-motion"
 import { useEffect, useState } from "react"
 import { useInView } from "react-intersection-observer"
 
-import { removeWord, setWords } from "~words-slice"
+import { removeWord } from "~words-slice"
 
 const queryClient = new QueryClient()
 
@@ -48,6 +48,7 @@ const AuthenticatedView = () => {
 
   useEffect(() => {
     if (inView) {
+      console.log("inView", inView)
       loadMoreWords().then(() => {})
     }
   }, [inView])

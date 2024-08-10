@@ -4,6 +4,8 @@ import { setHasMore, setIsLoading, setWords } from "~words-slice"
 
 export {}
 
+const PAGE_SIZE = 50
+
 export const AUTH_HOST =
   "https://broccoli-go-user-pool-domain.auth.us-east-1.amazoncognito.com"
 
@@ -59,21 +61,22 @@ export function launchWebAuthFlow() {
 
 export const loadMoreWords = async () => {
   const isLoading = store.getState().words.isLoading
+  console.log("isLoading", isLoading)
   if (isLoading) return
   const words = store.getState().words?.words ?? []
   const offset = words?.length ?? 0
-  console.log("Loading more words...", offset, words)
   store.dispatch(setIsLoading(true))
   try {
     const newWords = await fetchWords(offset)
     store.dispatch(setWords([...words, ...newWords]))
-    store.dispatch(setHasMore(newWords.length >= 10))
+    store.dispatch(setHasMore(newWords.length >= PAGE_SIZE))
   } finally {
     store.dispatch(setIsLoading(false))
+    console.log("loaded", false)
   }
 }
 
-const fetchWords = async (offset: number = 0, size: number = 10) => {
+const fetchWords = async (offset: number = 0, size: number = PAGE_SIZE) => {
   try {
     const response = await fetch(
       `http://localhost:8000/api/v1/words?offset=${offset}&size=${size}`,
