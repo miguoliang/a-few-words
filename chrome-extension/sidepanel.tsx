@@ -8,7 +8,7 @@ import { Provider } from "react-redux"
 
 import { PersistGate } from "@plasmohq/redux-persist/integration/react"
 
-import { deleteWord, fetchWords, launchWebAuthFlow } from "~content"
+import { deleteWord, fetchWords, launchWebAuthFlow, type Word } from "~content"
 import { persistor, store, useAppDispatch, useAppSelector } from "~store"
 
 import "~style.css"
@@ -62,14 +62,13 @@ const AuthenticatedView = () => {
         return undefined // no more pages
       }
     },
-    enabled: !!accessToken
+    enabled: !!accessToken,
+    refetchOnMount: false
   })
 
   useEffect(() => {
-    if (status === "success") {
-      dispatch(setWords(data.pages.flatMap((v) => v)))
-    }
-  }, [status])
+    dispatch(setWords(data?.pages?.flatMap((v) => v) ?? []))
+  }, [data])
 
   if (!accessToken) {
     return (
