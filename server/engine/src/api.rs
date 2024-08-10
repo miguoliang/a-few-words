@@ -34,7 +34,7 @@ pub async fn get_word(id: i32, username: &str, pool: &PgPool) -> Result<Word, Er
 pub async fn list_words(username: &str, offset: Offset, pool: &PgPool) -> Result<Vec<Word>, Error> {
     offset.validate()?;
     let words = sqlx::query_as(
-        "SELECT * FROM words WHERE username = $1 ORDER BY created_at OFFSET $2 LIMIT $3",
+        "SELECT * FROM words WHERE username = $1 ORDER BY created_at DESC OFFSET $2 LIMIT $3",
     )
     .bind(username)
     .bind(offset.offset.unwrap_or(0))

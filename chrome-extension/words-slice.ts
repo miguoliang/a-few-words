@@ -4,6 +4,8 @@ import { type Words } from "~content"
 
 export interface WordsState {
   words?: Words
+  isLoading?: boolean,
+  hasMore?: boolean
 }
 
 const wordsSlice = createSlice({
@@ -15,10 +17,16 @@ const wordsSlice = createSlice({
     },
     removeWord: (state, action) => {
       state.words = state.words?.filter((word) => word.id !== action.payload)
+    },
+    setIsLoading: (state, action) => {
+      state.isLoading = action.payload
+    },
+    setHasMore: (state, action) => {
+      state.hasMore = action.payload
     }
   }
 })
 
-export const { setWords, removeWord } = wordsSlice.actions
+export const { setWords, removeWord, setIsLoading, setHasMore } = wordsSlice.actions
 
 export default wordsSlice.reducer

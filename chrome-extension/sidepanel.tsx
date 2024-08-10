@@ -8,7 +8,7 @@ import { Provider } from "react-redux"
 
 import { PersistGate } from "@plasmohq/redux-persist/integration/react"
 
-import { deleteWord, fetchWords, launchWebAuthFlow, type Word } from "~content"
+import { deleteWord, launchWebAuthFlow, loadMoreWords } from "~content"
 import { persistor, store, useAppDispatch, useAppSelector } from "~store"
 
 import "~style.css"
@@ -16,12 +16,12 @@ import "~style.css"
 import {
   QueryClient,
   QueryClientProvider,
-  useInfiniteQuery,
   useMutation
 } from "@tanstack/react-query"
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools"
 import { motion } from "framer-motion"
 import { useEffect, useState } from "react"
+import { useInView } from "react-intersection-observer"
 
 import { removeWord, setWords } from "~words-slice"
 
@@ -42,33 +42,15 @@ const SidePanel = () => {
 
 const AuthenticatedView = () => {
   const accessToken = useAppSelector((state) => state.auth.access_token)
-  const dispatch = useAppDispatch()
-  const {
-    data,
-    fetchNextPage,
-    hasNextPage,
-    isFetching,
-    isFetchingNextPage,
-    status
-  } = useInfiniteQuery({
-    queryKey: ["words"],
-    queryFn: ({ pageParam = 0 }) => fetchWords(pageParam),
-    initialPageParam: 0,
-    getNextPageParam: (lastPage, allPages) => {
-      // Determine the next page parameter here
-      if (lastPage.length === 10) {
-        return allPages.length * 10 // offset for the next page
-      } else {
-        return undefined // no more pages
-      }
-    },
-    enabled: !!accessToken,
-    refetchOnMount: false
-  })
+  const isLoading = useAppSelector((state) => state.words.isLoading)
+  const hasMore = useAppSelector((state) => state.words.hasMore)
+  const { ref, inView } = useInView()
 
   useEffect(() => {
-    dispatch(setWords(data?.pages?.flatMap((v) => v) ?? []))
-  }, [data])
+    if (inView) {
+      loadMoreWords().then(() => {})
+    }
+  }, [inView])
 
   if (!accessToken) {
     return (
@@ -89,11 +71,16 @@ const AuthenticatedView = () => {
     <div className="flex flex-col gap-2 p-2">
       <Header accessToken={accessToken} />
       <WordList />
-      {isFetching && <div>Loading...</div>}
-      {isFetchingNextPage && <div>Loading next page...</div>}
-      {hasNextPage && (
-        <button onClick={() => fetchNextPage()}>Load more</button>
-      )}
+      <button
+        ref={ref}
+        onClick={async () => await loadMoreWords()}
+        disabled={!hasMore || isLoading}>
+        {isLoading
+          ? "Loading more..."
+          : hasMore
+            ? "Load Newer"
+            : "Nothing more to load"}
+      </button>
     </div>
   )
 }
@@ -212,5 +199,12 @@ const Header = ({ accessToken }: HeaderProps) => {
     </div>
   )
 }
+
+// Listen for messages from the background script
+chrome.runtime.onMessage.addListener((message) => {
+  if (message.type === "wordCreated") {
+    loadMoreWords().then(() => {})
+  }
+})
 
 export default SidePanel

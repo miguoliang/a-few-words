@@ -1,9 +1,11 @@
 import { combineReducers, configureStore } from "@reduxjs/toolkit"
+import { transform } from "framer-motion"
 import { useDispatch, useSelector } from "react-redux"
 import type { TypedUseSelectorHook } from "react-redux"
 import { syncStorage } from "redux-persist-webextension-storage"
 
 import {
+  createTransform,
   FLUSH,
   PAUSE,
   PERSIST,
@@ -28,7 +30,8 @@ const combinedReducers = combineReducers({
 const persistConfig = {
   key: "root",
   version: 1,
-  storage: syncStorage
+  storage: syncStorage,
+  blacklist: ["words"]
 }
 
 // Fix persistReducer so it doesn't break the types

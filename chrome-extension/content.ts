@@ -1,6 +1,6 @@
 import { setLogout, setTokens } from "~auth-slice"
 import { store } from "~store"
-import { setWords } from "~words-slice"
+import { setHasMore, setIsLoading, setWords } from "~words-slice"
 
 export {}
 
@@ -57,7 +57,23 @@ export function launchWebAuthFlow() {
   )
 }
 
-export const fetchWords = async (offset: number = 0, size: number = 10) => {
+export const loadMoreWords = async () => {
+  const isLoading = store.getState().words.isLoading
+  if (isLoading) return
+  const words = store.getState().words?.words ?? []
+  const offset = words?.length ?? 0
+  console.log("Loading more words...", offset, words)
+  store.dispatch(setIsLoading(true))
+  try {
+    const newWords = await fetchWords(offset)
+    store.dispatch(setWords([...words, ...newWords]))
+    store.dispatch(setHasMore(newWords.length >= 10))
+  } finally {
+    store.dispatch(setIsLoading(false))
+  }
+}
+
+const fetchWords = async (offset: number = 0, size: number = 10) => {
   try {
     const response = await fetch(
       `http://localhost:8000/api/v1/words?offset=${offset}&size=${size}`,
@@ -92,8 +108,8 @@ export const createWord = async (word: Word) => {
       body: JSON.stringify(word)
     })
     if (response.ok) {
-      const word = await response.json()
-      store.dispatch(setWords([...store.getState().words.words, word]))
+      await response.json()
+      chrome.runtime.sendMessage({ type: "wordCreated" })
     } else if (response.status === 401) {
       store.dispatch(setLogout())
     } else {
