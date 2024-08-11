@@ -76,7 +76,10 @@ export const loadMoreWords = async () => {
   }
 }
 
-const fetchWords = async (offset: number = 0, size: number = PAGE_SIZE) => {
+export const fetchWords = async (
+  offset: number = 0,
+  size: number = PAGE_SIZE
+) => {
   try {
     const response = await fetch(
       `http://localhost:8000/api/v1/words?offset=${offset}&size=${size}`,

@@ -8,7 +8,12 @@ import { Provider } from "react-redux"
 
 import { PersistGate } from "@plasmohq/redux-persist/integration/react"
 
-import { deleteWord, launchWebAuthFlow, loadMoreWords } from "~content"
+import {
+  deleteWord,
+  fetchWords,
+  launchWebAuthFlow,
+  loadMoreWords
+} from "~content"
 import { persistor, store, useAppDispatch, useAppSelector } from "~store"
 
 import "~style.css"
@@ -23,7 +28,7 @@ import { motion } from "framer-motion"
 import { useEffect, useState } from "react"
 import { useInView } from "react-intersection-observer"
 
-import { removeWord } from "~words-slice"
+import { removeWord, setWords } from "~words-slice"
 
 const queryClient = new QueryClient()
 
@@ -76,11 +81,8 @@ const AuthenticatedView = () => {
         ref={ref}
         onClick={async () => await loadMoreWords()}
         disabled={!hasMore || isLoading}>
-        {isLoading
-          ? "Loading more..."
-          : hasMore
-            ? "Load Newer"
-            : "Nothing more to load"}
+        {isLoading && "Loading more..."}
+        {!isLoading && hasMore ? "Load Newer" : "Nothing more to load"}
       </button>
     </div>
   )
@@ -111,7 +113,7 @@ interface WordProps {
   definition?: string
 }
 
-const WordCell = ({ id, word, url, definition }: WordProps) => {
+const WordCell = ({ id, word, url, definition }: Readonly<WordProps>) => {
   return (
     <div className="flex flex-col bg-gray-200 p-2 rounded-lg gap-1">
       <WordToolbar id={id} word={word} url={url} />
@@ -121,7 +123,13 @@ const WordCell = ({ id, word, url, definition }: WordProps) => {
   )
 }
 
-const WordToolbar = ({ id, word, url }: WordProps) => {
+interface WordToolbarProps {
+  id: number
+  word: string
+  url?: string
+}
+
+const WordToolbar = ({ id, word, url }: Readonly<WordToolbarProps>) => {
   const dispatch = useAppDispatch()
   const mutation = useMutation({
     mutationFn: (id: number) => deleteWord(id),
@@ -184,7 +192,7 @@ interface HeaderProps {
   accessToken: string
 }
 
-const Header = ({ accessToken }: HeaderProps) => {
+const Header = ({ accessToken }: Readonly<HeaderProps>) => {
   const jwt = accessToken.split(".")[1]
   const decoded = JSON.parse(atob(jwt))
   return (
@@ -202,9 +210,17 @@ const Header = ({ accessToken }: HeaderProps) => {
 }
 
 // Listen for messages from the background script
-chrome.runtime.onMessage.addListener((message) => {
+chrome.runtime.onMessage.addListener(async (message) => {
   if (message.type === "wordCreated") {
-    loadMoreWords().then(() => {})
+    const words = store.getState().words.words ?? []
+    const latestWords = await fetchWords(message.word)
+    if (words.length == 0) {
+      store.dispatch(setWords([...latestWords]))
+      return
+    }
+    const firstWord = words.at(0)
+    const newWords = latestWords.filter((word) => word.id > firstWord.id)
+    store.dispatch(setWords([...newWords, ...words]))
   }
 })
 
