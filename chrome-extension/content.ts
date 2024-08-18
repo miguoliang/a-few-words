@@ -7,9 +7,22 @@ export {}
 const PAGE_SIZE = 50
 
 export const AUTH_HOST =
-  "https://broccoli-go-user-pool-domain.auth.us-east-1.amazoncognito.com"
+  process.env.PLASMO_PUBLIC_AUTH_HOST ||
+  (() => {
+    throw new Error("AUTH_HOST is required")
+  })()
 
-export const AUTH_CLIENT_ID = "5p99s5nl7nha5tfnpik3r0rb7j"
+export const AUTH_CLIENT_ID =
+  process.env.PLASMO_PUBLIC_AUTH_CLIENT_ID ||
+  (() => {
+    throw new Error("AUTH_CLIENT_ID is required")
+  })()
+
+export const API_HOST =
+  process.env.PLASMO_PUBLIC_API_HOST ||
+  (() => {
+    throw new Error("API_HOST is required")
+  })()
 
 export function launchWebAuthFlow() {
   const searchParams = new URLSearchParams()
@@ -41,8 +54,8 @@ export function launchWebAuthFlow() {
           "Content-Type": "application/x-www-form-urlencoded"
         },
         body: new URLSearchParams({
-          code: code,
-          client_id: "5p99s5nl7nha5tfnpik3r0rb7j",
+          code,
+          client_id: AUTH_CLIENT_ID,
           redirect_uri: chrome.identity.getRedirectURL(),
           grant_type: "authorization_code"
         })
@@ -105,7 +118,7 @@ export const fetchWords = async (
 
 export const createWord = async (word: Word) => {
   try {
-    const response = await fetch("http://localhost:8000/api/v1/words", {
+    const response = await fetch(`${API_HOST}/api/v1/words`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -128,7 +141,7 @@ export const createWord = async (word: Word) => {
 
 export const deleteWord = async (id: number) => {
   try {
-    const response = await fetch(`http://localhost:8000/api/v1/words/${id}`, {
+    const response = await fetch(`${API_HOST}/api/v1/words/${id}`, {
       method: "DELETE",
       headers: {
         Authorization: "Bearer " + store?.getState().auth.access_token
@@ -154,14 +167,11 @@ export type TranslateResponse = {
 
 export const translate = async (text: string) => {
   try {
-    const response = await fetch(
-      `http://localhost:8000/api/v1/translate?text=${text}`,
-      {
-        headers: {
-          Authorization: `Bearer ${store.getState().auth.access_token}`
-        }
+    const response = await fetch(`${API_HOST}/api/v1/translate?text=${text}`, {
+      headers: {
+        Authorization: `Bearer ${store.getState().auth.access_token}`
       }
-    )
+    })
     if (response.ok) {
       return (await response.json()) as TranslateResponse
     } else if (response.status === 401) {
