@@ -1,3 +1,4 @@
+name: a_few_words
 services:
   postgres: # Database
     image: postgres:16-alpine
