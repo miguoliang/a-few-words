@@ -74,7 +74,6 @@ export function launchWebAuthFlow() {
 
 export const loadMoreWords = async () => {
   const isLoading = store.getState().words.isLoading
-  console.log("isLoading", isLoading)
   if (isLoading) return
   const words = store.getState().words?.words ?? []
   const offset = words?.length ?? 0
@@ -195,3 +194,14 @@ export type Word = {
 }
 
 export type Words = Word[]
+
+export function isExpired(jwt: string) {
+  try {
+    const claims = jwt.split(".")[1]
+    const decoded = JSON.parse(atob(claims))
+    const currentTime = Math.floor(Date.now() / 1000)
+    return decoded.exp < currentTime
+  } catch {
+    return true
+  }
+}

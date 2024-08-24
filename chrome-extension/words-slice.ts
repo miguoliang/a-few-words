@@ -3,14 +3,18 @@ import { createSlice } from "@reduxjs/toolkit"
 import { type Words } from "~content"
 
 export interface WordsState {
-  words?: Words
-  isLoading?: boolean,
-  hasMore?: boolean
+  words: Words
+  isLoading: boolean
+  hasMore: boolean
 }
 
 const wordsSlice = createSlice({
   name: "words",
-  initialState: {} as WordsState,
+  initialState: {
+    words: [],
+    isLoading: false,
+    hasMore: true
+  } as WordsState,
   reducers: {
     setWords: (state, action) => {
       state.words = action.payload
@@ -27,6 +31,7 @@ const wordsSlice = createSlice({
   }
 })
 
-export const { setWords, removeWord, setIsLoading, setHasMore } = wordsSlice.actions
+export const { setWords, removeWord, setIsLoading, setHasMore } =
+  wordsSlice.actions
 
 export default wordsSlice.reducer
