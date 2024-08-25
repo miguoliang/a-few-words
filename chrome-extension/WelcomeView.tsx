@@ -28,7 +28,7 @@ const WelcomeView = () => {
           onClick={() =>
             chrome.runtime.sendMessage({
               action: "openUrl",
-              url: ""
+              url: "https://miguoliang.com/a-few-words/privacy-policy.html"
             })
           }>
           Privacy Policy
@@ -38,10 +38,10 @@ const WelcomeView = () => {
           onClick={() =>
             chrome.runtime.sendMessage({
               action: "openUrl",
-              url: ""
+              url: "https://miguoliang.com/a-few-words/terms-and-conditions.html"
             })
           }>
-          Terms of Service
+          Terms and Conditions
         </button>
       </div>
     </div>
