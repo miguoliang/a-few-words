@@ -2,5 +2,6 @@
 authors = ["Mi Guoliang"]
 language = "en"
 multilingual = false
+version = "0.0.1"
 src = "src"
 title = "Guide to A Few Words"
