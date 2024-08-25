@@ -94,7 +94,7 @@ export const fetchWords = async (
 ) => {
   try {
     const response = await fetch(
-      `http://localhost:8000/api/v1/words?offset=${offset}&size=${size}`,
+      `http://${API_HOST}/api/v1/words?offset=${offset}&size=${size}`,
       {
         headers: {
           Authorization: `Bearer ${store.getState().auth.access_token}`
