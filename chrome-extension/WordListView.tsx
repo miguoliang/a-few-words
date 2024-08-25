@@ -42,7 +42,7 @@ const WordListView = () => {
           onClick={async () => await loadMoreWords()}
           disabled={!hasMore || isLoading}>
           {isLoading && "Loading more..."}
-          {!isLoading && hasMore ? "Load Newer" : "Nothing more to load"}
+          {!isLoading && (hasMore ? "Load Newer" : "Nothing more to load")}
         </button>
       )}
     </div>
