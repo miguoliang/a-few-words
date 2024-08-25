@@ -22,6 +22,28 @@ const WelcomeView = () => {
         onClick={() => launchWebAuthFlow()}>
         💪<span className="ml-5">Get Started</span>
       </button>
+      <div className="grid grid-cols-2 gap-2">
+        <button
+          className="text-blue-500 underline"
+          onClick={() =>
+            chrome.runtime.sendMessage({
+              action: "openUrl",
+              url: ""
+            })
+          }>
+          Privacy Policy
+        </button>
+        <button
+          className="text-blue-500 underline"
+          onClick={() =>
+            chrome.runtime.sendMessage({
+              action: "openUrl",
+              url: ""
+            })
+          }>
+          Terms of Service
+        </button>
+      </div>
     </div>
   )
 }

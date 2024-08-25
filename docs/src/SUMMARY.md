@@ -1,4 +1,4 @@
 # Summary
 
 [Introduction](./introduction.md)
-[Privacy Policy](./privacy_policy.md)
+[Privacy Policy](./privacy-policy.md)
