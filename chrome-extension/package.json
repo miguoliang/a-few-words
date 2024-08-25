@@ -2,7 +2,7 @@
   "name": "a-few-words",
   "displayName": "A few words",
   "version": "0.0.1",
-  "description": "A basic Plasmo extension.",
+  "description": "Record words when you see them. Review them when you need them. All actions are done in the side panel of your browser.",
   "author": "Mi Guoliang <boymgl@qq.com>",
   "scripts": {
     "dev": "plasmo dev",
