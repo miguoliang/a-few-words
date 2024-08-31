@@ -1,6 +1,14 @@
 import { setLogout, setTokens } from "~auth-slice"
-import { AUTH_CLIENT_ID, AUTH_HOST, createWord, translate } from "~content"
+import {
+  createWord,
+  OIDC_AUTHORITY,
+  OIDC_CLIENT_ID,
+  OIDC_HOST,
+  OIDC_POST_LOGOUT_REDIRECT_URI,
+  translate
+} from "~content"
 import { store } from "~store"
+import { resetWords } from "~words-slice"
 
 export {}
 
@@ -14,15 +22,31 @@ chrome.runtime.onInstalled.addListener(async () => {
   setInterval(refreshToken, 1000 * 60 * 30)
 })
 
+chrome.cookies.onChanged.addListener((changeInfo) => {
+  const { cookie, removed } = changeInfo
+  const url = new URL(OIDC_HOST)
+  const name = `oidc.user:${OIDC_AUTHORITY}:${OIDC_CLIENT_ID}`
+  if (cookie.domain === url.hostname && cookie.name === name && removed) {
+    store.dispatch(setLogout())
+    store.dispatch(resetWords())
+  } else if (
+    cookie.domain === url.hostname &&
+    cookie.name === name &&
+    !removed
+  ) {
+    store.dispatch(setTokens(JSON.parse(cookie.value)))
+  }
+})
+
 async function refreshToken() {
   const refresh_token = store.getState().auth.refresh_token
   const access_token = store.getState().auth.access_token
   const searchParams = new URLSearchParams()
-  searchParams.append("client_id", AUTH_CLIENT_ID)
+  searchParams.append("client_id", OIDC_CLIENT_ID)
   searchParams.append("grant_type", "refresh_token")
   searchParams.append("refresh_token", refresh_token)
   if (!access_token) return
-  const response = await fetch(`${AUTH_HOST}/oauth2/token`, {
+  const response = await fetch(`${OIDC_HOST}/oauth2/token`, {
     method: "POST",
     headers: {
       "Content-Type": "application/x-www-form-urlencoded"
@@ -146,18 +170,17 @@ chrome.contextMenus.onClicked.addListener((item, tab) => {
   }
 })
 
-chrome.runtime.onMessage.addListener(function (request) {
+chrome.runtime.onMessage.addListener((request) => {
   if (request.action === "openUrl") {
     chrome.tabs.create({ url: request.url })
-  } else if (request.action === "register") {
-    const searchParams = new URLSearchParams()
-    searchParams.append("client_id", AUTH_CLIENT_ID)
-    searchParams.append("response_type", "code")
-    searchParams.append("redirect_uri", chrome.identity.getRedirectURL())
-    searchParams.append("scope", "openid email profile")
-    const url = `${AUTH_HOST}/signup?${searchParams.toString()}`
-    chrome.tabs.create({ url })
   } else if (request.action === "logout") {
     store.dispatch(setLogout())
+    store.dispatch(resetWords())
+    const searchParams = new URLSearchParams()
+    searchParams.append("client_id", OIDC_CLIENT_ID)
+    searchParams.append("response_type", "code")
+    searchParams.append("redirect_uri", OIDC_POST_LOGOUT_REDIRECT_URI)
+    const logoutUrl = `${OIDC_HOST}/logout?${searchParams.toString()}`
+    chrome.tabs.create({ url: logoutUrl })
   }
 })

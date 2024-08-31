@@ -1,4 +1,4 @@
-import { setLogout, setTokens } from "~auth-slice"
+import { setLogout } from "~auth-slice"
 import { store } from "~store"
 import { setHasMore, setIsLoading, setWords } from "~words-slice"
 
@@ -6,16 +6,34 @@ export {}
 
 const PAGE_SIZE = 50
 
-export const AUTH_HOST =
-  process.env.PLASMO_PUBLIC_AUTH_HOST ||
+export const OIDC_AUTHORITY =
+  process.env.PLASMO_PUBLIC_OIDC_AUTHORITY ||
   (() => {
-    throw new Error("AUTH_HOST is required")
+    throw new Error("OIDC_AUTHORITY is required")
   })()
 
-export const AUTH_CLIENT_ID =
-  process.env.PLASMO_PUBLIC_AUTH_CLIENT_ID ||
+export const OIDC_HOST =
+  process.env.PLASMO_PUBLIC_OIDC_HOST ||
   (() => {
-    throw new Error("AUTH_CLIENT_ID is required")
+    throw new Error("OIDC_HOST is required")
+  })()
+
+export const OIDC_CLIENT_ID =
+  process.env.PLASMO_PUBLIC_OIDC_CLIENT_ID ||
+  (() => {
+    throw new Error("OIDC_CLIENT_ID is required")
+  })()
+
+export const OIDC_REDIRECT_URI =
+  process.env.PLASMO_PUBLIC_OIDC_REDIRECT_URI ||
+  (() => {
+    throw new Error("OIDC_REDIRECT_URI is required")
+  })()
+
+export const OIDC_POST_LOGOUT_REDIRECT_URI =
+  process.env.PLASMO_PUBLIC_OIDC_POST_LOGOUT_REDIRECT_URI ||
+  (() => {
+    throw new Error("OIDC_POST_LOGOUT_REDIRECT_URI is required")
   })()
 
 export const API_HOST =
@@ -24,52 +42,14 @@ export const API_HOST =
     throw new Error("API_HOST is required")
   })()
 
-export function launchWebAuthFlow() {
+export async function launchWebAuthFlow() {
   const searchParams = new URLSearchParams()
-  searchParams.append("client_id", AUTH_CLIENT_ID)
+  searchParams.append("client_id", OIDC_CLIENT_ID)
   searchParams.append("response_type", "code")
-  searchParams.append("redirect_uri", chrome.identity.getRedirectURL())
+  searchParams.append("redirect_uri", OIDC_REDIRECT_URI)
   searchParams.append("scope", "openid email profile")
-  const url = `${AUTH_HOST}/oauth2/authorize?${searchParams.toString()}`
-  chrome.identity.launchWebAuthFlow(
-    {
-      url,
-      interactive: true
-    },
-    (redirectUrl) => {
-      if (chrome.runtime.lastError || redirectUrl.includes("error")) {
-        console.error(chrome.runtime.lastError)
-        console.error("Error during authentication:", redirectUrl)
-        return
-      }
-
-      // Extract authorization code from redirectUrl
-      let url = new URL(redirectUrl)
-      let code = url.searchParams.get("code")
-
-      // Exchange authorization code for tokens
-      fetch(`${AUTH_HOST}/oauth2/token`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded"
-        },
-        body: new URLSearchParams({
-          code,
-          client_id: AUTH_CLIENT_ID,
-          redirect_uri: chrome.identity.getRedirectURL(),
-          grant_type: "authorization_code"
-        })
-      })
-        .then((response) => response.json())
-        .then((tokens) => {
-          // Handle tokens (access_token, id_token, etc.)
-          store?.dispatch(setTokens(tokens))
-        })
-        .catch((error) =>
-          console.error("Error exchanging code for tokens:", error)
-        )
-    }
-  )
+  const url = `${OIDC_HOST}/oauth2/authorize?${searchParams.toString()}`
+  await chrome.tabs.create({ url })
 }
 
 export const loadMoreWords = async () => {
@@ -84,7 +64,6 @@ export const loadMoreWords = async () => {
     store.dispatch(setHasMore(newWords.length >= PAGE_SIZE))
   } finally {
     store.dispatch(setIsLoading(false))
-    console.log("loaded", false)
   }
 }
 

@@ -13,7 +13,7 @@ const wordsSlice = createSlice({
   initialState: {
     words: [],
     isLoading: false,
-    hasMore: true
+    hasMore: false
   } as WordsState,
   reducers: {
     setWords: (state, action) => {
@@ -27,11 +27,16 @@ const wordsSlice = createSlice({
     },
     setHasMore: (state, action) => {
       state.hasMore = action.payload
+    },
+    resetWords: (state) => {
+      state.words = []
+      state.isLoading = false
+      state.hasMore = false
     }
   }
 })
 
-export const { setWords, removeWord, setIsLoading, setHasMore } =
+export const { setWords, removeWord, setIsLoading, setHasMore, resetWords } =
   wordsSlice.actions
 
 export default wordsSlice.reducer

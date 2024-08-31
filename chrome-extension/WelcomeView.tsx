@@ -19,7 +19,7 @@ const WelcomeView = () => {
       </div>
       <button
         className="m-5 bg-black block text-white rounded-full text-xl p-3"
-        onClick={() => launchWebAuthFlow()}>
+        onClick={async () => await launchWebAuthFlow()}>
         💪<span className="ml-5">Get Started</span>
       </button>
       <div className="grid grid-cols-2 gap-2">

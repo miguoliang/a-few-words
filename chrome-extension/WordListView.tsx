@@ -19,7 +19,6 @@ const WordListView = () => {
 
   useEffect(() => {
     if (inView || words?.length === 0) {
-      console.log("loading more words")
       loadMoreWords().then(() => {})
     }
   }, [inView])

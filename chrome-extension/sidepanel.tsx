@@ -15,7 +15,7 @@ import { setLogout } from "~auth-slice"
 import HeaderView from "~HeaderView"
 import WelcomeView from "~WelcomeView"
 import WordListView from "~WordListView"
-import { setWords } from "~words-slice"
+import { resetWords, setWords } from "~words-slice"
 
 const queryClient = new QueryClient()
 
@@ -42,12 +42,13 @@ const SidePanel = () => {
 
 const Layout = () => {
   const accessToken = useAppSelector((state) => state.auth.access_token)
+  const idToken = useAppSelector((state) => state.auth.id_token)
   if (!accessToken) {
     return <Navigate to="/welcome" />
   }
   return (
     <div className="flex flex-col gap-2 p-2">
-      <HeaderView accessToken={accessToken} />
+      <HeaderView idToken={idToken} />
       <Outlet />
     </div>
   )
@@ -67,6 +68,7 @@ chrome.runtime.onMessage.addListener(async (message) => {
     store.dispatch(setWords([...newWords, ...words]))
   } else if (message.type === "logout") {
     store.dispatch(setLogout())
+    store.dispatch(resetWords())
   }
 })
 
