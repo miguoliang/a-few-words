@@ -17,12 +17,6 @@ export interface Message {
   [key: string]: any
 }
 
-export const COOKIES_DOMAIN =
-  process.env.PLASMO_PUBLIC_COOKIES_DOMAIN ||
-  (() => {
-    throw new Error("COOKIES_DOMAIN is required")
-  })()
-
 export const WEBSITE_LOGIN_URL =
   process.env.PLASMO_PUBLIC_WEBSITE_LOGIN_URL ||
   (() => {
