@@ -1,6 +1,6 @@
 import { createSlice } from "@reduxjs/toolkit"
 
-import { type Words } from "~content"
+import { type Words } from "~common"
 
 export interface WordsState {
   words: Words

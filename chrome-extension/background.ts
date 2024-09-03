@@ -1,12 +1,10 @@
 import { setLogout, setTokens } from "~auth-slice"
 import {
   createWord,
-  OIDC_AUTHORITY,
   OIDC_CLIENT_ID,
   OIDC_HOST,
-  OIDC_POST_LOGOUT_REDIRECT_URI,
   translate
-} from "~content"
+} from "~common"
 import { store } from "~store"
 import { resetWords } from "~words-slice"
 
@@ -20,22 +18,6 @@ chrome.runtime.onInstalled.addListener(async () => {
   })
   chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true })
   setInterval(refreshToken, 1000 * 60 * 30)
-})
-
-chrome.cookies.onChanged.addListener((changeInfo) => {
-  const { cookie, removed } = changeInfo
-  const url = new URL(OIDC_HOST)
-  const name = `oidc.user:${OIDC_AUTHORITY}:${OIDC_CLIENT_ID}`
-  if (cookie.domain === url.hostname && cookie.name === name && removed) {
-    store.dispatch(setLogout())
-    store.dispatch(resetWords())
-  } else if (
-    cookie.domain === url.hostname &&
-    cookie.name === name &&
-    !removed
-  ) {
-    store.dispatch(setTokens(JSON.parse(cookie.value)))
-  }
 })
 
 async function refreshToken() {
@@ -171,16 +153,13 @@ chrome.contextMenus.onClicked.addListener((item, tab) => {
 })
 
 chrome.runtime.onMessage.addListener((request) => {
-  if (request.action === "openUrl") {
+  if (request.action === "open_url") {
     chrome.tabs.create({ url: request.url })
-  } else if (request.action === "logout") {
+  } else if (request.type === "logout") {
     store.dispatch(setLogout())
     store.dispatch(resetWords())
-    const searchParams = new URLSearchParams()
-    searchParams.append("client_id", OIDC_CLIENT_ID)
-    searchParams.append("response_type", "code")
-    searchParams.append("redirect_uri", OIDC_POST_LOGOUT_REDIRECT_URI)
-    const logoutUrl = `${OIDC_HOST}/logout?${searchParams.toString()}`
-    chrome.tabs.create({ url: logoutUrl })
+  } else if (request.type === "a_few_words_oidc") {
+    console.debug("Receive authorization from the web page.", request)
+    store.dispatch(setTokens(request))
   }
 })

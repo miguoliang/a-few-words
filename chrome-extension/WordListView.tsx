@@ -7,7 +7,7 @@ import { HiOutlineTrash } from "react-icons/hi"
 import { IoCopyOutline, IoEarth } from "react-icons/io5"
 import { useInView } from "react-intersection-observer"
 
-import { deleteWord, loadMoreWords } from "~content"
+import { deleteWord, loadMoreWords, type Message } from "~common"
 import { useAppDispatch, useAppSelector } from "~store"
 import { removeWord } from "~words-slice"
 
@@ -104,9 +104,9 @@ const WordToolbar = ({ id, word, url }: Readonly<WordToolbarProps>) => {
         disabled={!url}
         onClick={() =>
           chrome.runtime.sendMessage({
-            action: "openUrl",
+            type: "open_url",
             url
-          })
+          } as Message)
         }>
         <IoEarth />
       </button>

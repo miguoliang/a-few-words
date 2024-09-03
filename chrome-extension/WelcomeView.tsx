@@ -1,13 +1,13 @@
 import banner from "data-base64:~assets/banner.webp"
 import { Navigate } from "react-router-dom"
 
-import { isExpired, launchWebAuthFlow } from "~content"
+import { isExpired, WEBSITE_LOGIN_URL, type Message } from "~common"
 import { useAppSelector } from "~store"
 
 const WelcomeView = () => {
   const accessToken = useAppSelector((state) => state.auth.access_token)
   if (isExpired(accessToken)) {
-    chrome.runtime.sendMessage({ type: "logout" })
+    chrome.runtime.sendMessage({ type: "logout" } as Message)
   } else {
     return <Navigate to="/word-list" />
   }
@@ -19,7 +19,12 @@ const WelcomeView = () => {
       </div>
       <button
         className="m-5 bg-black block text-white rounded-full text-xl p-3"
-        onClick={async () => await launchWebAuthFlow()}>
+        onClick={() =>
+          chrome.runtime.sendMessage({
+            type: "open_url",
+            url: WEBSITE_LOGIN_URL
+          } as Message)
+        }>
         💪<span className="ml-5">Get Started</span>
       </button>
       <div className="grid grid-cols-2 gap-2">
@@ -27,9 +32,9 @@ const WelcomeView = () => {
           className="text-blue-500 underline"
           onClick={() =>
             chrome.runtime.sendMessage({
-              action: "openUrl",
+              type: "open_url",
               url: "https://miguoliang.com/a-few-words/privacy-policy.html"
-            })
+            } as Message)
           }>
           Privacy Policy
         </button>
@@ -37,9 +42,9 @@ const WelcomeView = () => {
           className="text-blue-500 underline"
           onClick={() =>
             chrome.runtime.sendMessage({
-              action: "openUrl",
+              type: "open_url",
               url: "https://miguoliang.com/a-few-words/terms-and-conditions.html"
-            })
+            } as Message)
           }>
           Terms and Conditions
         </button>

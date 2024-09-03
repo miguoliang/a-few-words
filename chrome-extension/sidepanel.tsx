@@ -2,7 +2,7 @@ import { Provider } from "react-redux"
 
 import { PersistGate } from "@plasmohq/redux-persist/integration/react"
 
-import { fetchWords } from "~content"
+import { fetchWords } from "~common"
 import { persistor, store, useAppSelector } from "~store"
 
 import "~style.css"
@@ -11,7 +11,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools"
 import { HashRouter, Navigate, Outlet, Route, Routes } from "react-router-dom"
 
-import { setLogout } from "~auth-slice"
+import { setLogout, setTokens } from "~auth-slice"
 import HeaderView from "~HeaderView"
 import WelcomeView from "~WelcomeView"
 import WordListView from "~WordListView"
@@ -69,6 +69,8 @@ chrome.runtime.onMessage.addListener(async (message) => {
   } else if (message.type === "logout") {
     store.dispatch(setLogout())
     store.dispatch(resetWords())
+  } else if (message.type === "a_few_words_oidc") {
+    store.dispatch(setTokens(message))
   }
 })
 

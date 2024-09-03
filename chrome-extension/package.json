@@ -49,10 +49,7 @@
       "scripting",
       "activeTab",
       "storage",
-      "sidePanel",
-      "identity",
-      "identity.email",
-      "cookies"
+      "sidePanel"
     ]
   }
 }
