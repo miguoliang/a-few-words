@@ -3,7 +3,8 @@ import {
   createWord,
   OIDC_CLIENT_ID,
   OIDC_HOST,
-  translate
+  translate,
+  type Message
 } from "~common"
 import { store } from "~store"
 import { resetWords } from "~words-slice"
@@ -152,8 +153,8 @@ chrome.contextMenus.onClicked.addListener((item, tab) => {
   }
 })
 
-chrome.runtime.onMessage.addListener((request) => {
-  if (request.action === "open_url") {
+chrome.runtime.onMessage.addListener((request: Message) => {
+  if (request.type === "open_url") {
     chrome.tabs.create({ url: request.url })
   } else if (request.type === "logout") {
     store.dispatch(setLogout())
