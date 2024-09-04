@@ -1,5 +1,6 @@
 import { PiSignOutBold } from "react-icons/pi"
-import type { Message } from "~common"
+
+import { WEBSITE_LOGIN_URL, type Message } from "~common"
 
 interface HeaderViewProps {
   idToken: string
@@ -15,11 +16,22 @@ const HeaderView = ({ idToken }: Readonly<HeaderViewProps>) => {
       </span>
       <button
         className="text-gray-500 text-lg"
-        onClick={() => chrome.runtime.sendMessage({ type: "logout" } as Message)}>
+        onClick={() => sendLogoutMessage()}>
         <PiSignOutBold />
       </button>
     </div>
   )
+}
+
+function sendLogoutMessage() {
+  chrome.runtime.sendMessage({ type: "logout" } as Message)
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    for (const tab of tabs) {
+      if (tab?.id) {
+        chrome.tabs.sendMessage(tabs[0].id, { type: "logout" } as Message)
+      }
+    }
+  })
 }
 
 export default HeaderView

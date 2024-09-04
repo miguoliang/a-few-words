@@ -25,11 +25,32 @@ if (code && state) {
     );
   });
 } else if (code) {
-  console.log("code is present but state is missing");
+  console.debug("code is present but state is missing");
   userManager.signoutRedirectCallback().then(() => {
     window.history.replaceState({}, document.title, location.pathname);
   });
 }
+
+window.addEventListener("message", (event) => {
+  if (event.source !== window) {
+    return;
+  }
+  const message = event.data;
+  if (message.type === "logout") {
+    console.debug(
+      "Received logout message from the content scripting",
+      message
+    );
+    // Clear local tokens
+    userManager.signoutRedirect({
+      extraQueryParams: {
+        client_id: import.meta.env.VITE_OIDC_CLIENT_ID,
+        logout_uri: import.meta.env.VITE_OIDC_POST_LOGOUT_REDIRECT_URI,
+        response_type: "code",
+      },
+    });
+  }
+});
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

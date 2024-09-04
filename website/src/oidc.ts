@@ -1,6 +1,6 @@
 import { UserManager } from "oidc-client-ts";
 
-const userManager = new UserManager({
+export const userManager = new UserManager({
   client_id: import.meta.env.VITE_OIDC_CLIENT_ID,
   redirect_uri: import.meta.env.VITE_OIDC_REDIRECT_URI,
   response_type: "code",
@@ -10,5 +10,3 @@ const userManager = new UserManager({
 });
 
 export const MESSAGE_NAME = "a_few_words_oidc";
-
-export { userManager };

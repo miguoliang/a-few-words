@@ -2,7 +2,7 @@ import { Provider } from "react-redux"
 
 import { PersistGate } from "@plasmohq/redux-persist/integration/react"
 
-import { fetchWords } from "~common"
+import { fetchWords, type Message } from "~common"
 import { persistor, store, useAppSelector } from "~store"
 
 import "~style.css"
@@ -55,8 +55,8 @@ const Layout = () => {
 }
 
 // Listen for messages from the background script
-chrome.runtime.onMessage.addListener(async (message) => {
-  if (message.type === "wordCreated") {
+chrome.runtime.onMessage.addListener(async (message: Message) => {
+  if (message.type === "word_created") {
     const words = store.getState().words.words ?? []
     const latestWords = await fetchWords(message.word)
     if (words.length == 0) {
