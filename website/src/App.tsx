@@ -1,5 +1,4 @@
 import Logo from "./Logo";
-import "./App.css";
 
 export default function App() {
   return (
