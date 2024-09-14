@@ -11,8 +11,9 @@ pub const MAX_USERNAME_LENGTH: u64 = 100;
 
 static NOT_BLANK: Lazy<Regex> = Lazy::new(|| Regex::new(r"\S+").unwrap());
 
-pub static USERNAME_LIKE: Lazy<Regex> =
-    Lazy::new(|| Regex::new(format!("^[a-zA-Z0-9]{{3,{MAX_USERNAME_LENGTH}}}$").as_str()).unwrap());
+pub static USERNAME_LIKE: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(format!("^[a-zA-Z0-9_]{{3,{MAX_USERNAME_LENGTH}}}$").as_str()).unwrap()
+});
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
@@ -63,6 +64,7 @@ mod tests {
             " username123",      // Leading whitespace
             "username-123 ",     // Trailing whitespace
             "username_123",      // Non-whitespace characters
+            "Google_123",        // Google ID
         ];
 
         for case in valid_cases {

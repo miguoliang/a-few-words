@@ -13,12 +13,12 @@ actix-web-httpauth = "0.8.2"
 engine = { path = "../engine", features = ["serde", "translate"] }
 reqwest = { version = "0.12.5", features = ["json"] }
 serde = { version = "1.0.204", features = ["derive"] }
-sqlx = { version = "0.8.1", features = ["postgres"] }
+sqlx = { version = "0.7.1", features = ["postgres"] }
 thiserror = "1.0.63"
 validator = "0.18.1"
 tokio = { version = "1.26.0", features = ["full"] }
 
 [dev-dependencies]
-sqlx = { version = "0.8.1", features = ["chrono", "postgres"] }
+sqlx = { version = "0.7.1", features = ["chrono", "postgres"] }
 toml = "0.8.19"
 percent-encoding = "2.3.1"
