@@ -1,6 +1,6 @@
 import { PiSignOutBold } from "react-icons/pi"
 
-import { WEBSITE_LOGIN_URL, type Message } from "~common"
+import { type Message } from "~common"
 
 interface HeaderViewProps {
   idToken: string
