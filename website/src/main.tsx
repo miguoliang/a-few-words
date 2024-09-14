@@ -6,10 +6,27 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { MESSAGE_NAME, userManager } from "./oidc";
 import Login from "./Login.tsx";
 
-// check if this app is launched by a redirect uri of oidc provider
+// Check if this app is launched by a redirect uri of oidc provider
 const url = new URL(window.location.href);
 const code = url.searchParams.get("code");
 const state = url.searchParams.get("state");
+
+// Function to check user authorization
+const checkUserAuthorization = async () => {
+  try {
+    const user = await userManager.getUser();
+    if (user && !user.expired) {
+      console.debug("User is authorized");
+      // You can add additional logic here for authorized users
+    } else {
+      console.debug("User is not authorized");
+      // You can add logic here for unauthorized users, e.g., redirect to login
+    }
+  } catch (error) {
+    console.error("Error checking user authorization:", error);
+  }
+};
+
 if (code && state) {
   userManager.signinRedirectCallback().then((user) => {
     window.history.replaceState({}, document.title, location.pathname);
@@ -23,12 +40,17 @@ if (code && state) {
       },
       "*"
     );
+    checkUserAuthorization(); // Check authorization after successful sign-in
   });
 } else if (code) {
   console.debug("code is present but state is missing");
   userManager.signoutRedirectCallback().then(() => {
     window.history.replaceState({}, document.title, location.pathname);
+    checkUserAuthorization(); // Check authorization after sign-out
   });
+} else {
+  // If no code or state, check authorization on app load
+  checkUserAuthorization();
 }
 
 window.addEventListener("message", (event) => {
