@@ -1,10 +1,8 @@
-import Logo from "./Logo";
 import { userManager } from "./oidc";
 
 const Login = () => {
   return (
     <div className="flex flex-col items-stretch justify-center gap-8 px-8 -mt-16 h-[100vh]">
-      <Logo />
       <button
         onClick={() => {
           userManager.signinRedirect();

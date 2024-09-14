@@ -1,6 +1,6 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import App from "./Logo.tsx";
+import App from "./App.tsx";
 import "./index.css";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { MESSAGE_NAME, userManager } from "./oidc";
@@ -10,22 +10,6 @@ import Login from "./Login.tsx";
 const url = new URL(window.location.href);
 const code = url.searchParams.get("code");
 const state = url.searchParams.get("state");
-
-// Function to check user authorization
-const checkUserAuthorization = async () => {
-  try {
-    const user = await userManager.getUser();
-    if (user && !user.expired) {
-      console.debug("User is authorized");
-      // You can add additional logic here for authorized users
-    } else {
-      console.debug("User is not authorized");
-      // You can add logic here for unauthorized users, e.g., redirect to login
-    }
-  } catch (error) {
-    console.error("Error checking user authorization:", error);
-  }
-};
 
 if (code && state) {
   userManager.signinRedirectCallback().then((user) => {
@@ -40,17 +24,16 @@ if (code && state) {
       },
       "*"
     );
-    checkUserAuthorization(); // Check authorization after successful sign-in
+  }).catch((error) => {
+    console.error("Error signing in:", error);
   });
 } else if (code) {
   console.debug("code is present but state is missing");
   userManager.signoutRedirectCallback().then(() => {
     window.history.replaceState({}, document.title, location.pathname);
-    checkUserAuthorization(); // Check authorization after sign-out
+  }).catch((error) => {
+    console.error("Error signing out:", error);
   });
-} else {
-  // If no code or state, check authorization on app load
-  checkUserAuthorization();
 }
 
 window.addEventListener("message", (event) => {
@@ -58,11 +41,8 @@ window.addEventListener("message", (event) => {
     return;
   }
   const message = event.data;
-  if (message.type === "logout") {
-    console.debug(
-      "Received logout message from the content scripting",
-      message
-    );
+  if (typeof message === 'object' && message !== null && 'type' in message && message.type === "logout") {
+    console.debug("Received logout message from the content scripting", message);
     // Clear local tokens
     userManager.signoutRedirect({
       extraQueryParams: {
