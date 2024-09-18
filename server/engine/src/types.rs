@@ -1,9 +1,10 @@
 use chrono::{Duration, NaiveDateTime};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use sqlx::FromRow;
 
 /// Represents a word entry in the database
-#[derive(Debug, FromRow, Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Debug, FromRow)]
 pub struct Word {
     pub word_id: i32,
     pub user_id: String, // Matches the JWT 'username' field
@@ -15,7 +16,8 @@ pub struct Word {
 }
 
 /// Represents a new word entry to be inserted into the database
-#[derive(Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Debug)]
 pub struct NewWord {
     pub user_id: String,
     pub word: String,
@@ -42,21 +44,37 @@ impl NewWord {
 }
 
 /// Represents a review session for a word
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, FromRow)]
 pub struct ReviewSession {
     pub session_id: i32,
     pub word_id: i32, // Foreign key from the words table
     pub review_date: NaiveDateTime,
     pub recall_score: i32, // Scale from 1 to 5
+    #[cfg_attr(
+        feature = "serde",
+        serde(
+            serialize_with = "serialize_duration",
+            deserialize_with = "deserialize_duration"
+        )
+    )] // Serialize and deserialize as number of seconds
     pub time_to_forget: Option<Duration>,
     pub next_review_date: Option<NaiveDateTime>,
 }
 
 /// Represents a new review session entry to be inserted into the database
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug)]
 pub struct NewReviewSession {
     pub word_id: i32,
     pub recall_score: i32,
+    #[cfg_attr(
+        feature = "serde",
+        serde(
+            serialize_with = "serialize_duration",
+            deserialize_with = "deserialize_duration"
+        )
+    )] // Serialize and deserialize as number of seconds
     pub time_to_forget: Option<Duration>,
     pub next_review_date: Option<NaiveDateTime>,
 }
@@ -83,16 +101,25 @@ impl NewReviewSession {
 }
 
 /// Represents the forgetting curve for a word
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, FromRow)]
 pub struct ForgettingCurve {
     pub curve_id: i32,
     pub word_id: i32, // Foreign key from the words table
+    #[cfg_attr(
+        feature = "serde",
+        serde(
+            serialize_with = "serialize_duration",
+            deserialize_with = "deserialize_duration"
+        )
+    )] // Serialize and deserialize as number of seconds
     pub review_interval: Option<Duration>,
     pub retention_rate: f64, // Between 0 and 1
     pub review_count: i32,   // Number of reviews done
 }
 
 /// Represents a new forgetting curve entry to be inserted into the database
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug)]
 pub struct NewForgettingCurve {
     pub word_id: i32,
@@ -101,8 +128,29 @@ pub struct NewForgettingCurve {
 }
 
 /// Represents pagination parameters for query results
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Debug, Clone)]
 pub struct PaginationParams {
     pub page: Option<u32>,
     pub size: Option<u32>,
+}
+
+#[cfg(feature = "serde")]
+fn serialize_duration<S>(duration: &Option<Duration>, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    match duration {
+        Some(d) => serializer.serialize_i64(d.num_seconds()),
+        None => serializer.serialize_none(),
+    }
+}
+
+#[cfg(feature = "serde")]
+fn deserialize_duration<'de, D>(deserializer: D) -> Result<Option<Duration>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let opt = Option::<i64>::deserialize(deserializer)?;
+    Ok(opt.map(Duration::seconds))
 }
