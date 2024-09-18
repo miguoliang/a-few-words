@@ -1,5 +1,5 @@
 use crate::error::Error;
-use crate::types::{NewWord, PaginationParams, PaginationResults, Word};
+use crate::types::{NewWord, PaginationParams, Word};
 use chrono::Utc;
 use sqlx::PgPool;
 
@@ -85,12 +85,12 @@ pub async fn get_word(word_id: i32, user_id: &str, pool: &PgPool) -> Result<Word
 ///
 /// # Returns
 ///
-/// Returns a `PaginationResults<Word>` containing the paginated words, or an `Error` if the operation fails
+/// Returns a `Vec<Word>` containing the paginated words, or an `Error` if the operation fails
 pub async fn get_words(
     user_id: &str,
-    pagination: &PaginationParams,
+    pagination: PaginationParams,
     pool: &PgPool,
-) -> Result<PaginationResults<Word>, Error> {
+) -> Result<Vec<Word>, Error> {
     let words = sqlx::query_as(
         r#"
         SELECT word_id, user_id, word, definition, url, date_added, initial_forgetting_rate
@@ -101,16 +101,12 @@ pub async fn get_words(
         "#,
     )
     .bind(user_id)
-    .bind(pagination.size as i64)
-    .bind((pagination.page * pagination.size) as i64)
+    .bind(pagination.size.unwrap_or(10) as i64)
+    .bind((pagination.page.unwrap_or(0) * pagination.size.unwrap_or(10)) as i64)
     .fetch_all(pool)
     .await?;
 
-    Ok(PaginationResults {
-        data: words,
-        page: pagination.page,
-        size: pagination.size,
-    })
+    Ok(words)
 }
 
 /// Retrieves words for review with pagination
@@ -123,12 +119,12 @@ pub async fn get_words(
 ///
 /// # Returns
 ///
-/// Returns a `PaginationResults<WordForReview>` if successful, or an `Error` if the operation fails
+/// Returns a `Vec<WordForReview>` if successful, or an `Error` if the operation fails
 pub async fn get_words_for_review(
     user_id: &str,
     pagination: &PaginationParams,
     pool: &PgPool,
-) -> Result<PaginationResults<Word>, Error> {
+) -> Result<Vec<Word>, Error> {
     let words = sqlx::query_as::<_, Word>(
         r#"
         SELECT word_id, user_id, word, definition, url, date_added, initial_forgetting_rate, next_review_date
@@ -140,16 +136,12 @@ pub async fn get_words_for_review(
         "#,
     )
     .bind(user_id)
-    .bind(pagination.size as i64)
-    .bind((pagination.page * pagination.size) as i64)
+    .bind(pagination.size.unwrap_or(10) as i64)
+    .bind((pagination.page.unwrap_or(0) * pagination.size.unwrap_or(10)) as i64)
     .fetch_all(pool)
     .await?;
 
-    Ok(PaginationResults {
-        data: words,
-        page: pagination.page,
-        size: pagination.size,
-    })
+    Ok(words)
 }
 
 /// Updates the next review date for a word

@@ -7,7 +7,7 @@ use actix_web::{
     web::{self, Json, Query},
     Responder, Result,
 };
-use engine::types::{PaginationParams, PaginationResults, Word};
+use engine::types::{PaginationParams, Word};
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use tokio::sync::Mutex;
@@ -65,8 +65,8 @@ pub async fn list(
     state: web::Data<AppState>,
     claims: web::ReqData<Claims>,
     query: web::Query<PaginationParams>,
-) -> Result<Json<PaginationResults<Word>>> {
-    let words = engine::api::get_words(&claims.username, &query.into_inner(), &state.pool)
+) -> Result<Json<Vec<Word>>> {
+    let words = engine::api::get_words(&claims.username, query.into_inner(), &state.pool)
         .await
         .map_err(engine::error::Error::into_actix_error)?;
     Ok(Json(words))

@@ -103,42 +103,6 @@ pub struct NewForgettingCurve {
 /// Represents pagination parameters for query results
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PaginationParams {
-    pub page: u32,
-    pub size: u32,
-}
-
-/// Represents pagination response for query results
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PaginationResults<T> {
-    pub page: u32,
-    pub size: u32,
-    pub data: Vec<T>,
-}
-
-impl<T> PaginationResults<T> {
-    pub fn new(params: PaginationParams, data: Vec<T>) -> Self {
-        Self {
-            page: params.page,
-            size: params.size,
-            data,
-        }
-    }
-
-    pub fn offset(&self) -> u32 {
-        (self.page - 1) * self.size
-    }
-
-    pub fn limit(&self) -> u32 {
-        self.size
-    }
-}
-
-impl<T> Default for PaginationResults<T> {
-    fn default() -> Self {
-        Self {
-            page: 1,
-            size: 10,
-            data: Vec::new(),
-        }
-    }
+    pub page: Option<u32>,
+    pub size: Option<u32>,
 }
