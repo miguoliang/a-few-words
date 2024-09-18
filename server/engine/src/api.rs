@@ -36,8 +36,8 @@ pub async fn insert_word(new_word: NewWord, pool: &PgPool) -> Result<Word, Error
     // Insert into review_sessions
     sqlx::query(
         r#"
-        INSERT INTO review_sessions (word_id, next_review_date)
-        VALUES ($1, $2)
+        INSERT INTO review_sessions (word_id, review_date, next_review_date)
+        VALUES ($1, $2, $2)
         "#,
     )
     .bind(word.word_id)
@@ -162,7 +162,7 @@ pub async fn update_next_review_date(
 ) -> Result<(), Error> {
     let current_interval: f64 = sqlx::query_scalar(
         r#"
-        SELECT EXTRACT(EPOCH FROM (next_review_date - review_date)) / 86400 AS current_interval
+        SELECT (EXTRACT(EPOCH FROM (next_review_date - review_date)) / 86400)::FLOAT8 AS current_interval
         FROM review_sessions
         WHERE word_id = $1
         ORDER BY review_date DESC
@@ -226,4 +226,97 @@ pub async fn delete_word(word_id: i32, user_id: &str, pool: &PgPool) -> Result<(
     .await?;
 
     Ok(())
+}
+
+/// Check whether a word belongs to a user
+///
+/// # Arguments
+///
+/// * `word_id` - The ID of the word to check
+/// * `user_id` - The ID of the user to check
+/// * `pool` - The database connection pool
+///
+/// # Returns
+///
+/// Returns `true` if the word belongs to the user, or `false` if the operation fails
+pub async fn check_word_belongs_to_user(
+    word_id: i32,
+    user_id: &str,
+    pool: &PgPool,
+) -> Result<bool, Error> {
+    let belongs_to_user = sqlx::query_scalar::<_, bool>(
+        r#"
+        SELECT EXISTS (
+            SELECT 1
+            FROM words
+            WHERE word_id = $1 AND user_id = $2
+        )
+        "#,
+    )
+    .bind(word_id)
+    .bind(user_id)
+    .fetch_one(pool)
+    .await?;
+
+    Ok(belongs_to_user)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sqlx::PgPool;
+
+    #[tokio::test]
+    async fn test_check_word_belongs_to_user() {
+        let pool = PgPool::connect("postgres://username:password@localhost:5432/a_few_words")
+            .await
+            .unwrap();
+        let word_id = 1;
+        let user_id = "test_user";
+
+        let belongs_to_user = check_word_belongs_to_user(word_id, user_id, &pool)
+            .await
+            .unwrap();
+        assert_eq!(belongs_to_user, false);
+    }
+
+    #[tokio::test]
+    async fn test_update_next_review_date() {
+        let pool = PgPool::connect("postgres://username:password@localhost:5432/a_few_words")
+            .await
+            .unwrap();
+        let recall_score = 5;
+
+        let time_of_insertion = chrono::Utc::now().naive_utc();
+        let word = insert_word(
+            NewWord {
+                word: "test_word".to_string(),
+                definition: "test_definition".to_string(),
+                url: "test_url".to_string(),
+                initial_forgetting_rate: Some(0.5),
+                user_id: "test_user".to_string(),
+            },
+            &pool,
+        )
+        .await
+        .unwrap();
+
+        let word_id = word.word_id;
+        update_next_review_date(word_id, recall_score, &pool)
+            .await
+            .unwrap();
+        let next_review_date = sqlx::query_scalar::<_, chrono::NaiveDateTime>(
+            r#"
+            SELECT next_review_date
+            FROM review_sessions
+            WHERE word_id = $1
+            "#,
+        )
+        .bind(word_id)
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+
+        assert!(next_review_date > time_of_insertion);
+    }
 }

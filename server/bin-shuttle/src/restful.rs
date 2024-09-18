@@ -114,6 +114,41 @@ pub async fn translate(
     }))
 }
 
+#[derive(Serialize, Deserialize, Validate)]
+struct ReviewParams {
+    word_id: i32,
+    recall_score: i32,
+}
+
+#[post("/review")]
+pub async fn review(
+    state: web::Data<AppState>,
+    claims: web::ReqData<Claims>,
+    body: web::Json<ReviewParams>,
+) -> Result<impl Responder> {
+    let word_belongs_to_user =
+        engine::api::check_word_belongs_to_user(body.word_id, &claims.username, &state.pool)
+            .await
+            .map_err(engine::error::Error::into_actix_error)?;
+    if !word_belongs_to_user {
+        return Err(actix_web::error::ErrorForbidden(
+            "Word does not belong to user",
+        ));
+    }
+
+    // Validate recall_score before updating
+    if body.recall_score < 1 || body.recall_score > 5 {
+        return Err(actix_web::error::ErrorBadRequest(
+            "Invalid recall score. Must be between 1 and 5.",
+        ));
+    }
+
+    engine::api::update_next_review_date(body.word_id, body.recall_score, &state.pool)
+        .await
+        .map_err(engine::error::Error::into_actix_error)?;
+    Ok(actix_web::HttpResponse::NoContent().finish())
+}
+
 #[cfg(test)]
 mod tests {
 
@@ -331,5 +366,57 @@ mod tests {
         );
         let resp: TranslateResponse = test::read_body_json(resp).await;
         assert_eq!(resp.text, "玩的很开心");
+    }
+
+    #[actix_web::test]
+    async fn test_review_api() {
+        let app = test::init_service(
+            App::new()
+                .app_data(Data::new(create_mock_app_state().await))
+                .wrap(HttpAuthentication::bearer(validator))
+                .service(review)
+                .service(add),
+        )
+        .await;
+
+        let req = test::TestRequest::post()
+            .uri("/words")
+            .set_json(NewWord {
+                word: "test_review_api".to_string(),
+                definition: None,
+                url: None,
+            })
+            .insert_header(("Authorization", "Bearer test"))
+            .to_request();
+        let word: Word = test::call_and_read_body_json(&app, req).await;
+
+        let req = test::TestRequest::post()
+            .uri("/review")
+            .set_json(ReviewParams {
+                word_id: word.word_id,
+                recall_score: 5,
+            })
+            .insert_header(("Authorization", "Bearer test"))
+            .to_request();
+        let resp = test::call_service(&app, req).await;
+        assert!(
+            resp.status().is_success(),
+            "Response Status Code: {:?}",
+            resp.status()
+        );
+
+        let to_review = engine::api::get_words_for_review(
+            "test",
+            &PaginationParams {
+                size: Some(10),
+                page: Some(0),
+            },
+            &get_connection_pool().await,
+        )
+        .await
+        .unwrap();
+
+        assert!(to_review.len() > 0);
+        assert!(to_review.iter().any(|w| w.word_id == word.word_id));
     }
 }

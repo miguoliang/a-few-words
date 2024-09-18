@@ -1,4 +1,5 @@
 use chrono::{Duration, NaiveDateTime};
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use sqlx::FromRow;
 
