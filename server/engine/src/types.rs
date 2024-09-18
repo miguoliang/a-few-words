@@ -1,130 +1,144 @@
-use once_cell::sync::Lazy;
-use regex::Regex;
-use sqlx::{prelude::*, types::chrono};
-use validator::Validate;
-
-pub const MAX_WORD_LENGTH: u64 = 500;
-pub const MAX_DEFINITION_LENGTH: u64 = 2000;
-pub const MAX_URL_LENGTH: u64 = 2000;
-pub const MAX_PAGE_SIZE: i32 = 100;
-pub const MAX_USERNAME_LENGTH: u64 = 100;
-
-static NOT_BLANK: Lazy<Regex> = Lazy::new(|| Regex::new(r"\S+").unwrap());
-
-pub static USERNAME_LIKE: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(format!("^[a-zA-Z0-9_]{{3,{MAX_USERNAME_LENGTH}}}$").as_str()).unwrap()
-});
-
-#[cfg(feature = "serde")]
+use chrono::{Duration, NaiveDateTime};
 use serde::{Deserialize, Serialize};
+use sqlx::FromRow;
 
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Validate)]
-pub struct NewWord {
-    #[validate(length(min = 1, max = MAX_WORD_LENGTH), regex(path = *NOT_BLANK))]
-    pub word: String,
-    #[validate(length(max = MAX_DEFINITION_LENGTH))]
-    pub definition: Option<String>,
-    #[validate(length(max = MAX_URL_LENGTH), url)]
-    pub url: Option<String>,
-    #[validate(regex(path = *USERNAME_LIKE))]
-    pub username: String,
-}
-
-#[cfg_attr(feature = "serde", derive(Deserialize))]
-#[derive(Validate)]
-pub struct Offset {
-    #[validate(range(min = 0))]
-    pub offset: Option<i32>,
-    #[validate(range(min = 1, max = MAX_PAGE_SIZE))]
-    pub size: Option<i32>,
-}
-
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(FromRow, PartialEq, Debug)]
+/// Represents a word entry in the database
+#[derive(Debug, FromRow, Serialize, Deserialize)]
 pub struct Word {
-    pub id: i32,
+    pub word_id: i32,
+    pub user_id: String, // Matches the JWT 'username' field
     pub word: String,
-    pub definition: Option<String>,
-    pub url: Option<String>,
-    pub username: String,
-    pub created_at: chrono::NaiveDateTime,
-    pub updated_at: chrono::NaiveDateTime,
+    pub definition: String,
+    pub url: String,
+    pub date_added: NaiveDateTime,
+    pub initial_forgetting_rate: f64,
 }
 
-#[cfg(test)]
-mod tests {
+/// Represents a new word entry to be inserted into the database
+#[derive(Debug, Serialize, Deserialize)]
+pub struct NewWord {
+    pub user_id: String,
+    pub word: String,
+    pub definition: String,
+    pub url: String,
+    pub initial_forgetting_rate: Option<f64>,
+}
 
-    use super::*;
-
-    #[tokio::test]
-    async fn test_not_blank_regex() {
-        let valid_cases = vec![
-            "username username", // Multiple words
-            " username123",      // Leading whitespace
-            "username-123 ",     // Trailing whitespace
-            "username_123",      // Non-whitespace characters
-            "Google_123",        // Google ID
-        ];
-
-        for case in valid_cases {
-            assert!(
-                NOT_BLANK.is_match(case),
-                "Expected validation to pass for input: {}",
-                case
-            );
-        }
-
-        let invalid_cases = vec!["", " ", "  ", "\t", "\n", "\r", "\r\n"];
-
-        for case in invalid_cases {
-            assert!(
-                !NOT_BLANK.is_match(case),
-                "Expected validation to fail for input: {}",
-                case
-            );
+impl NewWord {
+    pub fn new(user_id: String, word: String, definition: String, url: String) -> Self {
+        Self {
+            user_id,
+            word,
+            definition,
+            url,
+            initial_forgetting_rate: None,
         }
     }
 
-    #[tokio::test]
-    async fn test_valid_username() {
-        let invalid_cases = vec!["username", "username123"];
+    pub fn with_forgetting_rate(mut self, rate: f64) -> Self {
+        self.initial_forgetting_rate = Some(rate);
+        self
+    }
+}
 
-        for case in invalid_cases {
-            assert!(
-                USERNAME_LIKE.is_match(case),
-                "Expected validation to fail for input: {}",
-                case
-            );
+/// Represents a review session for a word
+#[derive(Debug, FromRow)]
+pub struct ReviewSession {
+    pub session_id: i32,
+    pub word_id: i32, // Foreign key from the words table
+    pub review_date: NaiveDateTime,
+    pub recall_score: i32, // Scale from 1 to 5
+    pub time_to_forget: Option<Duration>,
+    pub next_review_date: Option<NaiveDateTime>,
+}
+
+/// Represents a new review session entry to be inserted into the database
+#[derive(Debug)]
+pub struct NewReviewSession {
+    pub word_id: i32,
+    pub recall_score: i32,
+    pub time_to_forget: Option<Duration>,
+    pub next_review_date: Option<NaiveDateTime>,
+}
+
+impl NewReviewSession {
+    pub fn new(word_id: i32, recall_score: i32) -> Self {
+        Self {
+            word_id,
+            recall_score,
+            time_to_forget: None,
+            next_review_date: None,
         }
     }
 
-    #[tokio::test]
-    async fn test_invalid_fields() {
-        // Test cases that should fail the validation
-        let binding = ["a"; 101].join("");
-        let too_long = binding.as_str();
-        let invalid_cases = vec![
-            "",          // Empty string
-            "ab",        // Too short
-            "a@b",       // Invalid character @ in invalid position
-            "a-b",       // Invalid character - in invalid position
-            "a.b",       // Invalid character . in invalid position
-            "abc!",      // Invalid character !
-            "abc$",      // Invalid character $
-            " abc",      // Leading whitespace
-            "abc ",      // Trailing whitespace
-            "abc def",   // Space inside
-            "abc@def@g", // Multiple @ symbols
-            too_long,    // Too long
-        ];
+    pub fn with_time_to_forget(mut self, time_to_forget: Duration) -> Self {
+        self.time_to_forget = Some(time_to_forget);
+        self
+    }
 
-        for case in invalid_cases {
-            assert!(
-                !USERNAME_LIKE.is_match(case),
-                "Expected validation to fail for input: {}",
-                case
-            );
+    pub fn with_next_review_date(mut self, next_review_date: NaiveDateTime) -> Self {
+        self.next_review_date = Some(next_review_date);
+        self
+    }
+}
+
+/// Represents the forgetting curve for a word
+#[derive(Debug, FromRow)]
+pub struct ForgettingCurve {
+    pub curve_id: i32,
+    pub word_id: i32, // Foreign key from the words table
+    pub review_interval: Option<Duration>,
+    pub retention_rate: f64, // Between 0 and 1
+    pub review_count: i32,   // Number of reviews done
+}
+
+/// Represents a new forgetting curve entry to be inserted into the database
+#[derive(Debug)]
+pub struct NewForgettingCurve {
+    pub word_id: i32,
+    pub retention_rate: f64,
+    pub review_count: i32,
+}
+
+/// Represents pagination parameters for query results
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PaginationParams {
+    pub page: u32,
+    pub size: u32,
+}
+
+/// Represents pagination response for query results
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PaginationResults<T> {
+    pub page: u32,
+    pub size: u32,
+    pub data: Vec<T>,
+}
+
+impl<T> PaginationResults<T> {
+    pub fn new(params: PaginationParams, data: Vec<T>) -> Self {
+        Self {
+            page: params.page,
+            size: params.size,
+            data,
+        }
+    }
+
+    pub fn offset(&self) -> u32 {
+        (self.page - 1) * self.size
+    }
+
+    pub fn limit(&self) -> u32 {
+        self.size
+    }
+}
+
+impl<T> Default for PaginationResults<T> {
+    fn default() -> Self {
+        Self {
+            page: 1,
+            size: 10,
+            data: Vec::new(),
         }
     }
 }

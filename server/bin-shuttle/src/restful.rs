@@ -7,7 +7,7 @@ use actix_web::{
     web::{self, Json, Query},
     Responder, Result,
 };
-use engine::types::{Offset, Word, MAX_WORD_LENGTH};
+use engine::types::{PaginationParams, PaginationResults, Word};
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use tokio::sync::Mutex;
@@ -49,11 +49,12 @@ pub async fn add(
 ) -> Result<Json<Word>> {
     let new_word = engine::types::NewWord {
         word: word_new.word.clone(),
-        definition: word_new.definition.clone(),
-        url: word_new.url.clone(),
-        username: claims.username.clone(),
+        definition: word_new.definition.clone().unwrap_or_default(),
+        url: word_new.url.clone().unwrap_or_default(),
+        user_id: claims.username.clone(),
+        initial_forgetting_rate: Some(0.5),
     };
-    let word = engine::api::create_word(new_word, &state.pool)
+    let word = engine::api::insert_word(new_word, &state.pool)
         .await
         .map_err(engine::error::Error::into_actix_error)?;
     Ok(Json(word))
@@ -63,15 +64,15 @@ pub async fn add(
 pub async fn list(
     state: web::Data<AppState>,
     claims: web::ReqData<Claims>,
-    query: Query<Offset>,
-) -> Result<Json<Vec<Word>>> {
-    let words = engine::api::list_words(&claims.username, query.into_inner(), &state.pool)
+    query: web::Query<PaginationParams>,
+) -> Result<Json<PaginationResults<Word>>> {
+    let words = engine::api::get_words(&claims.username, &query.into_inner(), &state.pool)
         .await
         .map_err(engine::error::Error::into_actix_error)?;
     Ok(Json(words))
 }
 
-#[delete("/words/{id}")]
+#[delete("/words/{word_id}")]
 pub async fn delete(
     state: web::Data<AppState>,
     claims: web::ReqData<Claims>,
@@ -85,7 +86,7 @@ pub async fn delete(
 
 #[derive(Deserialize, Validate)]
 struct TranslateParams {
-    #[validate(length(min = 0, max = MAX_WORD_LENGTH))]
+    #[validate(length(min = 0, max = 1000))] // Assuming a reasonable max length of 1000 characters
     text: String,
 }
 
@@ -203,7 +204,7 @@ mod tests {
         let word: Word = test::call_and_read_body_json(&app, req).await;
 
         let req = test::TestRequest::get()
-            .uri(format!("/words/{}", word.id).as_str())
+            .uri(format!("/words/{}", word.word_id).as_str())
             .insert_header(("Authorization", "Bearer test"))
             .to_request();
         let resp = test::call_service(&app, req).await;
@@ -278,7 +279,7 @@ mod tests {
         let word: Word = test::call_and_read_body_json(&app, req).await;
 
         let req = test::TestRequest::delete()
-            .uri(format!("/words/{}", word.id).as_str())
+            .uri(format!("/words/{}", word.word_id).as_str())
             .insert_header(("Authorization", "Bearer test"))
             .to_request();
         let resp = test::call_service(&app, req).await;
@@ -289,7 +290,7 @@ mod tests {
         );
 
         let req = test::TestRequest::get()
-            .uri(format!("/words/{}", word.id).as_str())
+            .uri(format!("/words/{}", word.word_id).as_str())
             .insert_header(("Authorization", "Bearer test"))
             .to_request();
         let resp = test::call_service(&app, req).await;

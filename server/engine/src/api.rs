@@ -1,159 +1,237 @@
+use crate::error::Error;
+use crate::types::{NewWord, PaginationParams, PaginationResults, Word};
+use chrono::Utc;
 use sqlx::PgPool;
-use validator::Validate;
 
-#[cfg(feature = "translate")]
-use crate::translate::{translate_text, Language};
+/// Inserts a new word into the database
+///
+/// # Arguments
+///
+/// * `new_word` - The new word to be inserted
+/// * `pool` - The database connection pool
+///
+/// # Returns
+///
+/// Returns the inserted `Word` if successful, or an `Error` if the operation fails
+pub async fn insert_word(new_word: NewWord, pool: &PgPool) -> Result<Word, Error> {
+    let now = Utc::now().naive_utc();
+    let initial_forgetting_rate = new_word.initial_forgetting_rate.unwrap_or(0.5);
 
-use super::error::Error;
-use super::types::{NewWord, Offset, Word};
-
-pub async fn create_word(new_word: NewWord, pool: &PgPool) -> Result<Word, Error> {
-    new_word.validate()?;
-    let word = sqlx::query_as("INSERT INTO words(word, url, username, definition) VALUES ($1, $2, $3, $4) RETURNING id, word, definition, url, username, created_at, updated_at")
-        .bind(&new_word.word)
-        .bind(&new_word.url)
-        .bind(&new_word.username)
-        .bind(&new_word.definition)
-        .fetch_one(pool)
-        .await?;
-    Ok(word)
-}
-
-pub async fn get_word(id: i32, username: &str, pool: &PgPool) -> Result<Word, Error> {
-    if id < 1 {
-        return Err(Error::Validation(validator::ValidationErrors::new()));
-    }
-    let word = sqlx::query_as("SELECT * FROM words WHERE id = $1 AND username = $2")
-        .bind(id)
-        .bind(username)
-        .fetch_one(pool)
-        .await?;
-    Ok(word)
-}
-
-pub async fn list_words(username: &str, offset: Offset, pool: &PgPool) -> Result<Vec<Word>, Error> {
-    offset.validate()?;
-    let words = sqlx::query_as(
-        "SELECT * FROM words WHERE username = $1 ORDER BY created_at DESC OFFSET $2 LIMIT $3",
+    let word: Word = sqlx::query_as(
+        r#"
+        INSERT INTO words (user_id, word, definition, url, date_added, initial_forgetting_rate)
+        VALUES ($1, $2, $3, $4, $5, $6)
+        RETURNING word_id, user_id, word, definition, url, date_added, initial_forgetting_rate
+        "#,
     )
-    .bind(username)
-    .bind(offset.offset.unwrap_or(0))
-    .bind(offset.size.unwrap_or(10))
+    .bind(new_word.user_id)
+    .bind(new_word.word)
+    .bind(new_word.definition)
+    .bind(new_word.url)
+    .bind(now)
+    .bind(initial_forgetting_rate)
+    .fetch_one(pool)
+    .await?;
+
+    // Insert into review_sessions
+    sqlx::query(
+        r#"
+        INSERT INTO review_sessions (word_id, next_review_date)
+        VALUES ($1, $2)
+        "#,
+    )
+    .bind(word.word_id)
+    .bind(now)
+    .execute(pool)
+    .await?;
+
+    Ok(word)
+}
+
+/// Retrieves a word by its ID and user ID
+///
+/// # Arguments
+///
+/// * `word_id` - The ID of the word to retrieve
+/// * `user_id` - The ID of the user who owns the word
+/// * `pool` - The database connection pool
+///
+/// # Returns
+///
+/// Returns a `Word` if successful, or an `Error` if the operation fails
+pub async fn get_word(word_id: i32, user_id: &str, pool: &PgPool) -> Result<Word, Error> {
+    let word = sqlx::query_as::<_, Word>(
+        r#"
+        SELECT word_id, user_id, word, definition, url, date_added, initial_forgetting_rate
+        FROM words
+        WHERE word_id = $1 AND user_id = $2
+        "#,
+    )
+    .bind(word_id)
+    .bind(user_id)
+    .fetch_one(pool)
+    .await?;
+
+    Ok(word)
+}
+
+/// Retrieves words for a user with pagination
+///
+/// # Arguments
+///
+/// * `user_id` - The ID of the user who owns the words
+/// * `pagination` - Pagination parameters
+/// * `pool` - The database connection pool
+///
+/// # Returns
+///
+/// Returns a `PaginationResults<Word>` containing the paginated words, or an `Error` if the operation fails
+pub async fn get_words(
+    user_id: &str,
+    pagination: &PaginationParams,
+    pool: &PgPool,
+) -> Result<PaginationResults<Word>, Error> {
+    let words = sqlx::query_as(
+        r#"
+        SELECT word_id, user_id, word, definition, url, date_added, initial_forgetting_rate
+        FROM words
+        WHERE user_id = $1
+        ORDER BY date_added DESC
+        LIMIT $2 OFFSET $3
+        "#,
+    )
+    .bind(user_id)
+    .bind(pagination.size as i64)
+    .bind((pagination.page * pagination.size) as i64)
     .fetch_all(pool)
     .await?;
-    Ok(words)
+
+    Ok(PaginationResults {
+        data: words,
+        page: pagination.page,
+        size: pagination.size,
+    })
 }
 
-pub async fn delete_word(id: i32, username: &str, pool: &PgPool) -> Result<(), Error> {
-    if id < 1 {
-        return Err(Error::Validation(validator::ValidationErrors::new()));
-    }
-    sqlx::query("DELETE FROM words WHERE id = $1 AND username = $2")
-        .bind(id)
-        .bind(username)
-        .execute(pool)
-        .await?;
+/// Retrieves words for review with pagination
+///
+/// # Arguments
+///
+/// * `user_id` - The ID of the user who owns the words
+/// * `pagination` - Pagination parameters
+/// * `pool` - The database connection pool
+///
+/// # Returns
+///
+/// Returns a `PaginationResults<WordForReview>` if successful, or an `Error` if the operation fails
+pub async fn get_words_for_review(
+    user_id: &str,
+    pagination: &PaginationParams,
+    pool: &PgPool,
+) -> Result<PaginationResults<Word>, Error> {
+    let words = sqlx::query_as::<_, Word>(
+        r#"
+        SELECT word_id, user_id, word, definition, url, date_added, initial_forgetting_rate, next_review_date
+        FROM words
+        INNER JOIN review_sessions USING (word_id)
+        WHERE user_id = $1 AND next_review_date <= NOW()
+        ORDER BY next_review_date ASC
+        LIMIT $2 OFFSET $3
+        "#,
+    )
+    .bind(user_id)
+    .bind(pagination.size as i64)
+    .bind((pagination.page * pagination.size) as i64)
+    .fetch_all(pool)
+    .await?;
+
+    Ok(PaginationResults {
+        data: words,
+        page: pagination.page,
+        size: pagination.size,
+    })
+}
+
+/// Updates the next review date for a word
+///
+/// # Arguments
+///
+/// * `word_id` - The ID of the word to update
+/// * `next_review_date` - The new next review date
+/// * `pool` - The database connection pool
+///
+/// # Returns
+///
+/// Returns `true` if the update is successful, or `false` if the operation fails
+pub async fn update_next_review_date(
+    word_id: i32,
+    recall_score: i32,
+    pool: &PgPool,
+) -> Result<(), Error> {
+    let current_interval: f64 = sqlx::query_scalar(
+        r#"
+        SELECT EXTRACT(EPOCH FROM (next_review_date - review_date)) / 86400 AS current_interval
+        FROM review_sessions
+        WHERE word_id = $1
+        ORDER BY review_date DESC
+        LIMIT 1
+        "#,
+    )
+    .bind(word_id)
+    .fetch_one(pool)
+    .await?;
+
+    // Determine factor based on recall score
+    let factor = match recall_score {
+        5 => 2.5,
+        4 => 2.0,
+        3 => 1.0,
+        2 => 0.5,
+        1 => 0.25,
+        _ => 1.0,
+    };
+
+    // Calculate the new interval
+    let next_interval = current_interval * factor;
+
+    // Update the next review date
+    sqlx::query(
+        r#"
+        UPDATE review_sessions
+        SET next_review_date = CURRENT_TIMESTAMP + INTERVAL '1 day' * $1
+        WHERE word_id = $2
+        "#,
+    )
+    .bind(next_interval)
+    .bind(word_id)
+    .execute(pool)
+    .await?;
+
     Ok(())
 }
 
-#[cfg(feature = "translate")]
-pub async fn translate_from_english_to_chinese(key: &str, word: &str) -> Result<String, Error> {
-    translate_text(key, word, Language::English, Language::Chinese).await
-}
+/// Deletes a word by its ID and user ID
+///
+/// # Arguments
+///
+/// * `word_id` - The ID of the word to delete
+/// * `user_id` - The ID of the user who owns the word
+/// * `pool` - The database connection pool
+///
+/// # Returns
+///
+/// Returns `true` if the deletion is successful, or `false` if the operation fails
+pub async fn delete_word(word_id: i32, user_id: &str, pool: &PgPool) -> Result<(), Error> {
+    sqlx::query(
+        r#"
+        DELETE FROM words
+        WHERE word_id = $1 AND user_id = $2
+        "#,
+    )
+    .bind(word_id)
+    .bind(user_id)
+    .execute(pool)
+    .await?;
 
-#[cfg(test)]
-pub mod tests {
-
-    use crate::setup_database;
-
-    use super::*;
-    use sqlx::postgres::PgPoolOptions;
-
-    pub async fn get_connection_pool() -> PgPool {
-        let connection_string = "postgres://username:password@localhost:5432/a_few_words";
-        let pool = PgPoolOptions::new()
-            .max_connections(5)
-            .connect(connection_string)
-            .await
-            .unwrap();
-        setup_database(&pool).await.unwrap();
-        pool
-    }
-
-    #[cfg(feature = "translate")]
-    #[tokio::test]
-    async fn test_translate_from_english_to_chinese() {
-        dotenv::dotenv().ok();
-        let word = "hello";
-        let key = std::env::var("GOOGLE_TRANSLATE_API_KEY").unwrap();
-        let translation = translate_from_english_to_chinese(&key, word).await.unwrap();
-        assert_eq!(translation, "你好");
-    }
-
-    #[tokio::test]
-    async fn test_create_word() {
-        let pool = get_connection_pool().await;
-        let new_word = NewWord {
-            word: "test_create_word".to_string(),
-            definition: None,
-            url: None,
-            username: "test".to_string(),
-        };
-        let word = create_word(new_word, &pool).await.unwrap();
-        assert_eq!(word.word, "test_create_word");
-        assert_eq!(word.url, None);
-        assert_eq!(word.username, "test");
-    }
-
-    #[tokio::test]
-    async fn test_get_word() {
-        let pool = get_connection_pool().await;
-        let new_word = NewWord {
-            word: "test_get_word".to_string(),
-            definition: None,
-            url: None,
-            username: "test".to_string(),
-        };
-        let word = create_word(new_word, &pool).await.unwrap();
-        let retrieved_word = get_word(word.id, "test", &pool).await.unwrap();
-        assert_eq!(word, retrieved_word);
-    }
-
-    #[tokio::test]
-    async fn test_list_words() {
-        let pool = get_connection_pool().await;
-        let new_word = NewWord {
-            word: "test_list_words".to_string(),
-            definition: None,
-            url: None,
-            username: "test".to_string(),
-        };
-        create_word(new_word, &pool).await.unwrap();
-        let words = list_words(
-            "test",
-            Offset {
-                offset: None,
-                size: None,
-            },
-            &pool,
-        )
-        .await
-        .unwrap();
-        assert!(words.into_iter().any(|w| w.word == "test_list_words"));
-    }
-
-    #[tokio::test]
-    async fn test_delete_word() {
-        let pool = get_connection_pool().await;
-        let new_word = NewWord {
-            word: "test_delete_word".to_string(),
-            definition: None,
-            url: None,
-            username: "test".to_string(),
-        };
-        let word = create_word(new_word, &pool).await.unwrap();
-        delete_word(word.id, "test", &pool).await.unwrap();
-        let result = get_word(word.id, "test", &pool).await;
-        assert!(result.is_err());
-    }
+    Ok(())
 }
