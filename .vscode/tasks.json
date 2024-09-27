@@ -4,8 +4,13 @@
     {
       "type": "cargo",
       "command": "test",
-      "args": ["--features", "translate"],
-      "problemMatcher": ["$rustc"],
+      "args": [
+        "--features",
+        "translate"
+      ],
+      "problemMatcher": [
+        "$rustc"
+      ],
       "group": {
         "kind": "test",
         "isDefault": true

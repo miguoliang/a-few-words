@@ -1,16 +1,16 @@
 {
-    "version": "0.2.0",
-    "configurations": [
-      
-      {
-        "name": "Debug Server",
-        "type": "lldb",
-        "request": "launch",
-        "program": "${workspaceFolder}/server/target/debug/a-few-words",
-        "args": [],
-        "cwd": "${workspaceFolder}/server",
-        "sourceLanguages": ["rust"]
-      }
-    ]
-  }
-  
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug Server",
+      "type": "lldb",
+      "request": "launch",
+      "program": "${workspaceFolder}/server/target/debug/a-few-words",
+      "args": [],
+      "cwd": "${workspaceFolder}/server",
+      "sourceLanguages": [
+        "rust"
+      ]
+    }
+  ]
+}

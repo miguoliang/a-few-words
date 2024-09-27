@@ -1,7 +1,8 @@
 use crate::error::Error;
-use crate::types::{NewWord, PaginationParams, Word};
+use crate::types::{NewWord, PaginationParams, Word, USER_ID_PATTERN};
 use chrono::Utc;
 use sqlx::PgPool;
+use validator::{Validate, ValidationError, ValidationErrors};
 
 /// Inserts a new word into the database
 ///
@@ -14,6 +15,8 @@ use sqlx::PgPool;
 ///
 /// Returns the inserted `Word` if successful, or an `Error` if the operation fails
 pub async fn insert_word(new_word: NewWord, pool: &PgPool) -> Result<Word, Error> {
+    new_word.validate()?;
+
     let now = Utc::now().naive_utc();
     let initial_forgetting_rate = new_word.initial_forgetting_rate.unwrap_or(0.5);
 
@@ -60,6 +63,18 @@ pub async fn insert_word(new_word: NewWord, pool: &PgPool) -> Result<Word, Error
 ///
 /// Returns a `Word` if successful, or an `Error` if the operation fails
 pub async fn get_word(word_id: i32, user_id: &str, pool: &PgPool) -> Result<Word, Error> {
+    if word_id < 1 {
+        let mut errors = ValidationErrors::new();
+        errors.add("word_id", ValidationError::new("Invalid word ID"));
+        return Err(Error::Validation(errors));
+    }
+
+    if USER_ID_PATTERN.is_match(user_id) {
+        let mut errors = ValidationErrors::new();
+        errors.add("user_id", ValidationError::new("Invalid user ID"));
+        return Err(Error::Validation(errors));
+    }
+
     let word = sqlx::query_as::<_, Word>(
         r#"
         SELECT word_id, user_id, word, definition, url, date_added, initial_forgetting_rate
@@ -160,6 +175,18 @@ pub async fn update_next_review_date(
     recall_score: i32,
     pool: &PgPool,
 ) -> Result<(), Error> {
+    if word_id < 1 {
+        let mut errors = ValidationErrors::new();
+        errors.add("word_id", ValidationError::new("Invalid word ID"));
+        return Err(Error::Validation(errors));
+    }
+
+    if !(1..=5).contains(&recall_score) {
+        let mut errors = ValidationErrors::new();
+        errors.add("recall_score", ValidationError::new("Invalid recall score"));
+        return Err(Error::Validation(errors));
+    }
+
     let current_interval: f64 = sqlx::query_scalar(
         r#"
         SELECT (EXTRACT(EPOCH FROM (next_review_date - review_date)) / 86400)::FLOAT8 AS current_interval
@@ -214,6 +241,18 @@ pub async fn update_next_review_date(
 ///
 /// Returns `true` if the deletion is successful, or `false` if the operation fails
 pub async fn delete_word(word_id: i32, user_id: &str, pool: &PgPool) -> Result<(), Error> {
+    if word_id < 1 {
+        let mut errors = ValidationErrors::new();
+        errors.add("word_id", ValidationError::new("Invalid word ID"));
+        return Err(Error::Validation(errors));
+    }
+
+    if USER_ID_PATTERN.is_match(user_id) {
+        let mut errors = ValidationErrors::new();
+        errors.add("user_id", ValidationError::new("Invalid user ID"));
+        return Err(Error::Validation(errors));
+    }
+
     sqlx::query(
         r#"
         DELETE FROM words
@@ -244,6 +283,18 @@ pub async fn check_word_belongs_to_user(
     user_id: &str,
     pool: &PgPool,
 ) -> Result<bool, Error> {
+    if word_id < 1 {
+        let mut errors = ValidationErrors::new();
+        errors.add("word_id", ValidationError::new("Invalid word ID"));
+        return Err(Error::Validation(errors));
+    }
+
+    if USER_ID_PATTERN.is_match(user_id) {
+        let mut errors = ValidationErrors::new();
+        errors.add("user_id", ValidationError::new("Invalid user ID"));
+        return Err(Error::Validation(errors));
+    }
+
     let belongs_to_user = sqlx::query_scalar::<_, bool>(
         r#"
         SELECT EXISTS (
@@ -277,7 +328,7 @@ mod tests {
         let belongs_to_user = check_word_belongs_to_user(word_id, user_id, &pool)
             .await
             .unwrap();
-        assert_eq!(belongs_to_user, false);
+        assert!(!belongs_to_user);
     }
 
     #[tokio::test]
