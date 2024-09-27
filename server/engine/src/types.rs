@@ -39,7 +39,8 @@ pub static TRANSLATE_TEXT_PATTERN: Lazy<Regex> =
 /// The text must not contain any control characters
 /// The text must lead or trail with whitespace characters
 /// The text must not contain any consecutive whitespace characters
-static TEXT_PATTERN: Lazy<Regex> = Lazy::new(|| Regex::new(r"^\s*[^\p{Cc}]{1,3000}\s*$").unwrap());
+pub static TEXT_PATTERN: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"^\s*[^\p{Cc}]{1,3000}\s*$").unwrap());
 
 /// Represents a word entry in the database
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
