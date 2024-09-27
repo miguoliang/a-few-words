@@ -416,7 +416,7 @@ mod tests {
         .await
         .unwrap();
 
-        assert!(to_review.len() > 0);
+        assert!(!to_review.is_empty());
         assert!(to_review.iter().any(|w| w.word_id == word.word_id));
     }
 }
