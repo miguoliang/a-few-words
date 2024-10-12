@@ -2,7 +2,6 @@ use error::Error;
 use sqlx::PgPool;
 
 pub mod api;
-#[cfg(feature = "translate")]
 pub mod translate;
 pub mod types;
 

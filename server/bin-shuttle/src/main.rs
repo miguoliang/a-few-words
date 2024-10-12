@@ -17,10 +17,24 @@ use shuttle_actix_web::ShuttleActixWeb;
 use shuttle_runtime::SecretStore;
 use sqlx::PgPool;
 use tokio::sync::Mutex;
+use utoipa::OpenApi;
+use utoipa_swagger_ui::SwaggerUi;
 
 mod cognito;
+mod dto;
 mod error;
 mod restful;
+
+#[derive(OpenApi)]
+#[openapi(
+    info(
+        version = "1.0.0",
+        title = "A Few Words API",
+        description = "A RESTful API for managing words"
+    ),
+    paths(restful::retrieve)
+)]
+struct ApiDoc;
 
 #[shuttle_runtime::main]
 async fn main(
@@ -60,6 +74,9 @@ async fn main(
 
     let config = move |cfg: &mut ServiceConfig| {
         cfg.service(
+            SwaggerUi::new("/swagger-ui/{_:.*}").url("/api-docs/openapi.json", ApiDoc::openapi()),
+        )
+        .service(
             web::scope("/api/v1")
                 .wrap(Logger::default())
                 .wrap(HttpAuthentication::bearer(validator))

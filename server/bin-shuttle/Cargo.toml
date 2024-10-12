@@ -10,13 +10,16 @@ shuttle-runtime = "0.47.0"
 shuttle-shared-db = { version = "0.47.0", features = ["postgres", "sqlx"] }
 jsonwebtoken = "9.3.0"
 actix-web-httpauth = "0.8.2"
-engine = { path = "../engine", features = ["serde", "translate"] }
+engine = { path = "../engine" }
 reqwest = { version = "0.12.5", features = ["json"] }
 serde = { version = "1.0.204", features = ["derive"] }
 sqlx = { version = "0.7.1", features = ["postgres"] }
 thiserror = "1.0.63"
 validator = "0.18.1"
 tokio = { version = "1.26.0", features = ["full"] }
+utoipa = { version = "4", features = ["actix_extras"] }
+utoipa-swagger-ui = { version = "7.1.0", features = ["actix-web"] }
+chrono = "0.4.38"
 
 [dev-dependencies]
 sqlx = { version = "0.7.1", features = ["chrono", "postgres"] }

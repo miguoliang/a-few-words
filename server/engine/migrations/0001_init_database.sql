@@ -5,7 +5,8 @@ CREATE TABLE words (
     definition VARCHAR(5000) NOT NULL,
     url VARCHAR(5000) NOT NULL,
     date_added TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    initial_forgetting_rate FLOAT DEFAULT 0.5 -- or another default value
+    initial_forgetting_rate FLOAT DEFAULT 0.5, -- or another default value
+    UNIQUE (user_id, word) -- Ensures each word is unique per user
 );
 
 CREATE TABLE review_sessions (

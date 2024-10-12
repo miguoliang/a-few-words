@@ -2,16 +2,16 @@ use std::sync::Arc;
 
 use super::cognito;
 use super::cognito::Claims;
+use super::dto::{
+    NewWord, PaginationParams, ReviewParams, TranslateParams, TranslateResponse, Word,
+};
 use actix_web::{
     delete, get, post,
     web::{self, Json, Query},
     Responder, Result,
 };
-use engine::types::{PaginationParams, Word};
-use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use tokio::sync::Mutex;
-use validator::Validate;
 
 use super::error::IntoActixError;
 
@@ -22,6 +22,19 @@ pub struct AppState {
     pub google_translate_api_key: String,
 }
 
+/// Retrieve a word by ID
+#[utoipa::path(
+    responses(
+        (status = 200, description = "Word retrieved successfully", body = Word),
+        (status = NOT_FOUND, description = "Word not found"),
+        (status = 403, description = "Word does not belong to user"),
+        (status = 500, description = "Internal server error")
+    ),
+    params(
+        ("id" = i32, description = "The ID of the word to retrieve"),
+        ("Authorization" = String, description = "Bearer token")
+    )
+)]
 #[get("/words/{id}")]
 pub async fn retrieve(
     path: web::Path<i32>,
@@ -31,14 +44,7 @@ pub async fn retrieve(
     let word = engine::api::get_word(path.into_inner(), &claims.username, &state.pool)
         .await
         .map_err(engine::error::Error::into_actix_error)?;
-    Ok(Json(word))
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct NewWord {
-    word: String,
-    definition: Option<String>,
-    url: Option<String>,
+    Ok(Json(word.into()))
 }
 
 #[post("/words")]
@@ -57,7 +63,7 @@ pub async fn add(
     let word = engine::api::insert_word(new_word, &state.pool)
         .await
         .map_err(engine::error::Error::into_actix_error)?;
-    Ok(Json(word))
+    Ok(Json(word.into()))
 }
 
 #[get("/words")]
@@ -66,10 +72,10 @@ pub async fn list(
     claims: web::ReqData<Claims>,
     query: web::Query<PaginationParams>,
 ) -> Result<Json<Vec<Word>>> {
-    let words = engine::api::get_words(&claims.username, query.into_inner(), &state.pool)
+    let words = engine::api::get_words(&claims.username, query.page, query.size, &state.pool)
         .await
         .map_err(engine::error::Error::into_actix_error)?;
-    Ok(Json(words))
+    Ok(Json(words.into_iter().map(|w| w.into()).collect()))
 }
 
 #[delete("/words/{word_id}")]
@@ -82,17 +88,6 @@ pub async fn delete(
         .await
         .map_err(engine::error::Error::into_actix_error)?;
     Ok(actix_web::HttpResponse::NoContent().finish())
-}
-
-#[derive(Deserialize, Validate)]
-struct TranslateParams {
-    #[validate(length(min = 0, max = 1000))] // Assuming a reasonable max length of 1000 characters
-    text: String,
-}
-
-#[derive(Serialize, Deserialize)]
-struct TranslateResponse {
-    text: String,
 }
 
 #[get("/translate")]
@@ -112,12 +107,6 @@ pub async fn translate(
     Ok(Json(TranslateResponse {
         text: translated_text,
     }))
-}
-
-#[derive(Serialize, Deserialize, Validate)]
-struct ReviewParams {
-    word_id: i32,
-    recall_score: i32,
 }
 
 #[post("/review")]
@@ -185,7 +174,7 @@ mod tests {
     ) -> Result<ServiceRequest, (Error, ServiceRequest)> {
         req.extensions_mut().insert(Claims {
             exp: 0,
-            username: "test".to_string(),
+            username: "test_user".to_string(),
         });
         Ok(req)
     }
@@ -203,8 +192,8 @@ mod tests {
             .uri("/words")
             .set_json(NewWord {
                 word: "test_create_word_api".to_string(),
-                definition: None,
-                url: None,
+                definition: Some("Nostrud voluptate ea do sunt qui elit sunt velit ullamco aliqua reprehenderit consequat.".to_string()),
+                url: Some("http://localhost:8080".to_string()),
             })
             .insert_header(("Authorization", "Bearer test"))
             .to_request();
@@ -231,15 +220,15 @@ mod tests {
             .uri("/words")
             .set_json(NewWord {
                 word: "test_retrieve_word_api".to_string(),
-                definition: None,
-                url: None,
+                definition: Some("Nostrud voluptate ea do sunt qui elit sunt velit ullamco aliqua reprehenderit consequat.".to_string()),
+                url: Some("http://localhost:8080".to_string()),
             })
             .insert_header(("Authorization", "Bearer test"))
             .to_request();
         let word: Word = test::call_and_read_body_json(&app, req).await;
 
         let req = test::TestRequest::get()
-            .uri(format!("/words/{}", word.word_id).as_str())
+            .uri(format!("/words/{}", word.id).as_str())
             .insert_header(("Authorization", "Bearer test"))
             .to_request();
         let resp = test::call_service(&app, req).await;
@@ -265,8 +254,8 @@ mod tests {
             .uri("/words")
             .set_json(NewWord {
                 word: "test_list_words_api".to_string(),
-                definition: None,
-                url: None,
+                definition: Some("Dolor pariatur enim dolor labore labore Lorem duis officia tempor ipsum tempor nulla mollit nisi.".to_string()),
+                url: Some("http://localhost:8080".to_string()),
             })
             .insert_header(("Authorization", "Bearer test"))
             .to_request();
@@ -306,15 +295,15 @@ mod tests {
             .uri("/words")
             .set_json(NewWord {
                 word: "test_delete_word_api".to_string(),
-                definition: None,
-                url: None,
+                definition: Some("Dolor pariatur enim dolor labore labore Lorem duis officia tempor ipsum tempor nulla mollit nisi.".to_string()),
+                url: Some("http://localhost:8080".to_string()),
             })
             .insert_header(("Authorization", "Bearer test"))
             .to_request();
         let word: Word = test::call_and_read_body_json(&app, req).await;
 
         let req = test::TestRequest::delete()
-            .uri(format!("/words/{}", word.word_id).as_str())
+            .uri(format!("/words/{}", word.id).as_str())
             .insert_header(("Authorization", "Bearer test"))
             .to_request();
         let resp = test::call_service(&app, req).await;
@@ -325,7 +314,7 @@ mod tests {
         );
 
         let req = test::TestRequest::get()
-            .uri(format!("/words/{}", word.word_id).as_str())
+            .uri(format!("/words/{}", word.id).as_str())
             .insert_header(("Authorization", "Bearer test"))
             .to_request();
         let resp = test::call_service(&app, req).await;
@@ -383,8 +372,8 @@ mod tests {
             .uri("/words")
             .set_json(NewWord {
                 word: "test_review_api".to_string(),
-                definition: None,
-                url: None,
+                definition: Some("Dolor pariatur enim dolor labore labore Lorem duis officia tempor ipsum tempor nulla mollit nisi.".to_string()),
+                url: Some("http://localhost:8080".to_string()),
             })
             .insert_header(("Authorization", "Bearer test"))
             .to_request();
@@ -393,7 +382,7 @@ mod tests {
         let req = test::TestRequest::post()
             .uri("/review")
             .set_json(ReviewParams {
-                word_id: word.word_id,
+                word_id: word.id,
                 recall_score: 5,
             })
             .insert_header(("Authorization", "Bearer test"))
@@ -406,17 +395,15 @@ mod tests {
         );
 
         let to_review = engine::api::get_words_for_review(
-            "test",
-            &PaginationParams {
-                size: Some(10),
-                page: Some(0),
-            },
+            "test_user",
+            Some(0),
+            Some(10),
             &get_connection_pool().await,
         )
         .await
         .unwrap();
 
         assert!(!to_review.is_empty());
-        assert!(to_review.iter().any(|w| w.word_id == word.word_id));
+        assert!(to_review.iter().any(|w| w.word_id == word.id));
     }
 }

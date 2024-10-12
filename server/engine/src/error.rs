@@ -30,7 +30,6 @@ impl From<sqlx::Error> for Error {
     }
 }
 
-#[cfg(feature = "translate")]
 impl From<reqwest::Error> for Error {
     fn from(e: reqwest::Error) -> Self {
         Error::ThirdParty(e.to_string())

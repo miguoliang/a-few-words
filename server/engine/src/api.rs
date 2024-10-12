@@ -1,5 +1,5 @@
 use crate::error::Error;
-use crate::types::{NewWord, PaginationParams, Word, USER_ID_PATTERN};
+use crate::types::{NewWord, Word, DEFAULT_PAGE_SIZE, FIRST_PAGE, MAX_PAGE_SIZE, USER_ID_PATTERN};
 use chrono::Utc;
 use sqlx::PgPool;
 use validator::{Validate, ValidationError, ValidationErrors};
@@ -69,7 +69,7 @@ pub async fn get_word(word_id: i32, user_id: &str, pool: &PgPool) -> Result<Word
         return Err(Error::Validation(errors));
     }
 
-    if USER_ID_PATTERN.is_match(user_id) {
+    if !USER_ID_PATTERN.is_match(user_id) {
         let mut errors = ValidationErrors::new();
         errors.add("user_id", ValidationError::new("Invalid user ID"));
         return Err(Error::Validation(errors));
@@ -103,9 +103,25 @@ pub async fn get_word(word_id: i32, user_id: &str, pool: &PgPool) -> Result<Word
 /// Returns a `Vec<Word>` containing the paginated words, or an `Error` if the operation fails
 pub async fn get_words(
     user_id: &str,
-    pagination: PaginationParams,
+    page: Option<u64>,
+    size: Option<u64>,
     pool: &PgPool,
 ) -> Result<Vec<Word>, Error> {
+    if !USER_ID_PATTERN.is_match(user_id) {
+        let mut errors = ValidationErrors::new();
+        errors.add("user_id", ValidationError::new("Invalid user ID"));
+        return Err(Error::Validation(errors));
+    }
+
+    if size.unwrap_or(DEFAULT_PAGE_SIZE) > MAX_PAGE_SIZE {
+        let mut errors = ValidationErrors::new();
+        errors.add(
+            "size",
+            ValidationError::new("Page size must be at most 100"),
+        );
+        return Err(Error::Validation(errors));
+    }
+
     let words = sqlx::query_as(
         r#"
         SELECT word_id, user_id, word, definition, url, date_added, initial_forgetting_rate
@@ -116,8 +132,8 @@ pub async fn get_words(
         "#,
     )
     .bind(user_id)
-    .bind(pagination.size.unwrap_or(10) as i64)
-    .bind((pagination.page.unwrap_or(0) * pagination.size.unwrap_or(10)) as i64)
+    .bind(size.unwrap_or(DEFAULT_PAGE_SIZE) as i64)
+    .bind((page.unwrap_or(FIRST_PAGE) * size.unwrap_or(DEFAULT_PAGE_SIZE)) as i64)
     .fetch_all(pool)
     .await?;
 
@@ -137,9 +153,25 @@ pub async fn get_words(
 /// Returns a `Vec<WordForReview>` if successful, or an `Error` if the operation fails
 pub async fn get_words_for_review(
     user_id: &str,
-    pagination: &PaginationParams,
+    page: Option<u64>,
+    size: Option<u64>,
     pool: &PgPool,
 ) -> Result<Vec<Word>, Error> {
+    if !USER_ID_PATTERN.is_match(user_id) {
+        let mut errors = ValidationErrors::new();
+        errors.add("user_id", ValidationError::new("Invalid user ID"));
+        return Err(Error::Validation(errors));
+    }
+
+    if size.unwrap_or(DEFAULT_PAGE_SIZE) > MAX_PAGE_SIZE || size.unwrap_or(DEFAULT_PAGE_SIZE) < 1 {
+        let mut errors = ValidationErrors::new();
+        errors.add(
+            "size",
+            ValidationError::new("Page size must be at most 100"),
+        );
+        return Err(Error::Validation(errors));
+    }
+
     let words = sqlx::query_as::<_, Word>(
         r#"
         SELECT word_id, user_id, word, definition, url, date_added, initial_forgetting_rate, next_review_date
@@ -151,8 +183,8 @@ pub async fn get_words_for_review(
         "#,
     )
     .bind(user_id)
-    .bind(pagination.size.unwrap_or(10) as i64)
-    .bind((pagination.page.unwrap_or(0) * pagination.size.unwrap_or(10)) as i64)
+    .bind(size.unwrap_or(DEFAULT_PAGE_SIZE) as i64)
+    .bind((page.unwrap_or(FIRST_PAGE) * size.unwrap_or(DEFAULT_PAGE_SIZE)) as i64)
     .fetch_all(pool)
     .await?;
 
@@ -247,7 +279,7 @@ pub async fn delete_word(word_id: i32, user_id: &str, pool: &PgPool) -> Result<(
         return Err(Error::Validation(errors));
     }
 
-    if USER_ID_PATTERN.is_match(user_id) {
+    if !USER_ID_PATTERN.is_match(user_id) {
         let mut errors = ValidationErrors::new();
         errors.add("user_id", ValidationError::new("Invalid user ID"));
         return Err(Error::Validation(errors));
@@ -289,7 +321,7 @@ pub async fn check_word_belongs_to_user(
         return Err(Error::Validation(errors));
     }
 
-    if USER_ID_PATTERN.is_match(user_id) {
+    if !USER_ID_PATTERN.is_match(user_id) {
         let mut errors = ValidationErrors::new();
         errors.add("user_id", ValidationError::new("Invalid user ID"));
         return Err(Error::Validation(errors));
@@ -343,7 +375,7 @@ mod tests {
             NewWord {
                 word: "test_word".to_string(),
                 definition: "test_definition".to_string(),
-                url: "test_url".to_string(),
+                url: "http://localhost".to_string(),
                 initial_forgetting_rate: Some(0.5),
                 user_id: "test_user".to_string(),
             },

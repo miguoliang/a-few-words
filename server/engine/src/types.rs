@@ -1,49 +1,55 @@
 use chrono::{Duration, NaiveDateTime};
 use once_cell::sync::Lazy;
 use regex::Regex;
-#[cfg(feature = "serde")]
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use sqlx::FromRow;
 use validator::Validate;
 
-/// Create a regular expression pattern for validating a User ID
-/// The User ID must be a valid email address or a username
-/// The User ID must be at least 5 characters long
-/// The User ID must be at most 255 characters long
-/// The User ID must not contain any special characters
-/// The User ID must not contain any whitespace characters
-/// The User ID must not contain any control characters
-/// The User ID must not contain any non-ASCII characters
-/// The User ID must not contain any  non-printable characters
-/// The User ID must not contain any non-Unicode characters
+/// First page of a paginated query
+/// This is the default page number to start with
+/// The first page is set to 0
+pub const FIRST_PAGE: u64 = 0;
+
+/// Default page size of a paginated query
+/// This is the number of results to return in a single page
+/// The default page size is set to 10
+/// If a user wants to retrieve more results, they can specify a larger page size
+/// If a user wants to retrieve fewer results, they can specify a smaller page size
+pub const DEFAULT_PAGE_SIZE: u64 = 10;
+
+/// Maximum page size of a paginated query
+/// This is to prevent a user from requesting too many results at once
+/// The maximum page size is set to 100
+/// If a user wants to retrieve more results, they can make multiple requests
+/// with different page numbers
+pub const MAX_PAGE_SIZE: u64 = 100;
+
+/// Maximum length of a word
+/// This is the maximum length of a word to be translated
+pub const MAX_WORD_LENGTH: u64 = 5000;
+
+/// Maximum length of a definition
+/// This is the maximum length of a definition for a word
+pub const MAX_DEFINITION_LENGTH: u64 = 5000;
+
+/// Maximum length of a URL
+/// This is the maximum length of a URL for a word
+pub const MAX_URL_LENGTH: u64 = 5000;
+
+/// Minimum length of a user ID
+pub const MIN_USER_ID_LENGTH: usize = 5;
+
+/// Maximum length of a user ID
+pub const MAX_USER_ID_LENGTH: usize = 50;
+
 pub static USER_ID_PATTERN: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"^(?:[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})|([a-zA-Z0-9]{5,255})$")
-        .unwrap()
+    Regex::new(&format!(
+        r"^[a-zA-Z0-9_]{{{},{}}}$",
+        MIN_USER_ID_LENGTH, MAX_USER_ID_LENGTH
+    ))
+    .unwrap()
 });
 
-/// Represents a word, sentence, or paragraph to be translated
-/// The text to be translated must be at least 1 character long
-/// The text to be translated must be at most 1000 characters long
-/// The text to be translated must not contain any control characters
-/// The text to be translated must not contain any non-ASCII characters
-/// The text to be translated must not contain any non-printable characters
-/// The text to be translated must not contain any non-Unicode characters
-/// The text to be translated must not lead or trail with whitespace characters
-/// The text to be translated must not contain any consecutive whitespace characters
-pub static TRANSLATE_TEXT_PATTERN: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"^[^\p{Cc}\p{Cn}\p{Cf}\p{Z}]{1,1000}$").unwrap());
-
-/// Represents a piece of text
-/// The text must be at least 1 character long
-/// The text must be at most 3000 characters long
-/// The text must not contain any control characters
-/// The text must lead or trail with whitespace characters
-/// The text must not contain any consecutive whitespace characters
-pub static TEXT_PATTERN: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"^\s*[^\p{Cc}]{1,3000}\s*$").unwrap());
-
 /// Represents a word entry in the database
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, FromRow)]
 pub struct Word {
     pub word_id: i32,
@@ -56,14 +62,13 @@ pub struct Word {
 }
 
 /// Represents a new word entry to be inserted into the database
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Validate)]
 pub struct NewWord {
     #[validate(regex(path = *USER_ID_PATTERN))]
     pub user_id: String,
-    #[validate(regex(path = *TRANSLATE_TEXT_PATTERN))]
+    #[validate(length(min = 1, max = MAX_WORD_LENGTH))]
     pub word: String,
-    #[validate(regex(path = *TEXT_PATTERN))]
+    #[validate(length(min = 1, max = MAX_DEFINITION_LENGTH))]
     pub definition: String,
     #[validate(url)]
     pub url: String,
@@ -89,39 +94,23 @@ impl NewWord {
 }
 
 /// Represents a review session for a word
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, FromRow)]
 pub struct ReviewSession {
     pub session_id: i32,
     pub word_id: i32, // Foreign key from the words table
     pub review_date: NaiveDateTime,
     pub recall_score: i32, // Scale from 1 to 5
-    #[cfg_attr(
-        feature = "serde",
-        serde(
-            serialize_with = "serialize_duration",
-            deserialize_with = "deserialize_duration"
-        )
-    )] // Serialize and deserialize as number of seconds
     pub time_to_forget: Option<Duration>,
     pub next_review_date: Option<NaiveDateTime>,
 }
 
 /// Represents a new review session entry to be inserted into the database
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Validate)]
 pub struct NewReviewSession {
     #[validate(range(min = 1))]
     pub word_id: i32,
     #[validate(range(min = 1, max = 5))]
     pub recall_score: i32,
-    #[cfg_attr(
-        feature = "serde",
-        serde(
-            serialize_with = "serialize_duration",
-            deserialize_with = "deserialize_duration"
-        )
-    )] // Serialize and deserialize as number of seconds
     pub time_to_forget: Option<Duration>,
     pub next_review_date: Option<NaiveDateTime>,
 }
@@ -148,25 +137,16 @@ impl NewReviewSession {
 }
 
 /// Represents the forgetting curve for a word
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, FromRow)]
 pub struct ForgettingCurve {
     pub curve_id: i32,
     pub word_id: i32, // Foreign key from the words table
-    #[cfg_attr(
-        feature = "serde",
-        serde(
-            serialize_with = "serialize_duration",
-            deserialize_with = "deserialize_duration"
-        )
-    )] // Serialize and deserialize as number of seconds
     pub review_interval: Option<Duration>,
     pub retention_rate: f64, // Between 0 and 1
     pub review_count: i32,   // Number of reviews done
 }
 
 /// Represents a new forgetting curve entry to be inserted into the database
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Validate)]
 pub struct NewForgettingCurve {
     #[validate(range(min = 1))]
@@ -175,32 +155,4 @@ pub struct NewForgettingCurve {
     pub retention_rate: f64,
     #[validate(range(min = 1))]
     pub review_count: i32,
-}
-
-/// Represents pagination parameters for query results
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Debug, Clone)]
-pub struct PaginationParams {
-    pub page: Option<u32>,
-    pub size: Option<u32>,
-}
-
-#[cfg(feature = "serde")]
-fn serialize_duration<S>(duration: &Option<Duration>, serializer: S) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    match duration {
-        Some(d) => serializer.serialize_i64(d.num_seconds()),
-        None => serializer.serialize_none(),
-    }
-}
-
-#[cfg(feature = "serde")]
-fn deserialize_duration<'de, D>(deserializer: D) -> Result<Option<Duration>, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let opt = Option::<i64>::deserialize(deserializer)?;
-    Ok(opt.map(Duration::seconds))
 }
