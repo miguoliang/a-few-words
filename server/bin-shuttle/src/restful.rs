@@ -26,9 +26,12 @@ pub struct AppState {
 #[utoipa::path(
     responses(
         (status = 200, description = "Word retrieved successfully", body = Word),
-        (status = NOT_FOUND, description = "Word not found"),
+        (status = 404, description = "Word not found"),
         (status = 403, description = "Word does not belong to user"),
         (status = 500, description = "Internal server error")
+    ),
+    security(
+        ("Authorization" = ["Bearer"])
     ),
     params(
         ("id" = i32, description = "The ID of the word to retrieve"),
@@ -47,6 +50,22 @@ pub async fn retrieve(
     Ok(Json(word.into()))
 }
 
+/// Add a new word
+#[utoipa::path(
+    request_body = NewWord,
+    responses(
+        (status = 200, description = "Word added successfully", body = Word),
+        (status = 400, description = "Invalid request body"),
+        (status = 409, description = "Word already exists"),
+        (status = 500, description = "Internal server error")
+    ),
+    security(
+        ("Authorization" = ["Bearer"])
+    ),
+    params(
+        ("Authorization" = String, description = "Bearer token")
+    )
+)]
 #[post("/words")]
 pub async fn add(
     word_new: web::Json<NewWord>,
@@ -66,6 +85,21 @@ pub async fn add(
     Ok(Json(word.into()))
 }
 
+/// Retrieve a list of words
+#[utoipa::path(
+    responses(
+        (status = 200, description = "Words retrieved successfully", body = [Word]),
+        (status = 500, description = "Internal server error")
+    ),
+    security(
+        ("Authorization" = ["Bearer"])
+    ),
+    params(
+        ("Authorization" = String, Header, description = "Bearer token"),
+        ("page" = u32, Query, description = "The page number to retrieve"),
+        ("size" = u32, Query, description = "The number of words per page")
+    )
+)]
 #[get("/words")]
 pub async fn list(
     state: web::Data<AppState>,
