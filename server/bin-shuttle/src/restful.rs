@@ -7,7 +7,7 @@ use super::dto::{
 };
 use actix_web::{
     delete, get, post,
-    web::{self, Json, Query},
+    web::{self},
     Responder, Result,
 };
 use sqlx::PgPool;
@@ -43,18 +43,18 @@ pub async fn retrieve(
     path: web::Path<i32>,
     claims: web::ReqData<Claims>,
     state: web::Data<AppState>,
-) -> Result<Json<Word>> {
+) -> Result<web::Json<Word>> {
     let word = engine::api::get_word(path.into_inner(), &claims.username, &state.pool)
         .await
         .map_err(engine::error::Error::into_actix_error)?;
-    Ok(Json(word.into()))
+    Ok(web::Json(word.into()))
 }
 
 /// Add a new word
 #[utoipa::path(
     request_body = NewWord,
     responses(
-        (status = 200, description = "Word added successfully", body = Word),
+        (status = 200, description = "Word added successfully", body = inline(Word)),
         (status = 400, description = "Invalid request body"),
         (status = 409, description = "Word already exists"),
         (status = 500, description = "Internal server error")
@@ -71,7 +71,7 @@ pub async fn add(
     word_new: web::Json<NewWord>,
     state: web::Data<AppState>,
     claims: web::ReqData<Claims>,
-) -> Result<Json<Word>> {
+) -> Result<web::Json<Word>> {
     let new_word = engine::types::NewWord {
         word: word_new.word.clone(),
         definition: word_new.definition.clone().unwrap_or_default(),
@@ -82,7 +82,7 @@ pub async fn add(
     let word = engine::api::insert_word(new_word, &state.pool)
         .await
         .map_err(engine::error::Error::into_actix_error)?;
-    Ok(Json(word.into()))
+    Ok(web::Json(word.into()))
 }
 
 /// Retrieve a list of words
@@ -96,8 +96,8 @@ pub async fn add(
     ),
     params(
         ("Authorization" = String, Header, description = "Bearer token"),
-        ("page" = u32, Query, description = "The page number to retrieve"),
-        ("size" = u32, Query, description = "The number of words per page")
+        ("page" = u32, Query, description = "The page number to retrieve, starting from 0", example = 0),
+        ("size" = u32, Query, description = "The number of words per page, max 100", example = 10)
     )
 )]
 #[get("/words")]
@@ -105,13 +105,28 @@ pub async fn list(
     state: web::Data<AppState>,
     claims: web::ReqData<Claims>,
     query: web::Query<PaginationParams>,
-) -> Result<Json<Vec<Word>>> {
+) -> Result<web::Json<Vec<Word>>> {
     let words = engine::api::get_words(&claims.username, query.page, query.size, &state.pool)
         .await
         .map_err(engine::error::Error::into_actix_error)?;
-    Ok(Json(words.into_iter().map(|w| w.into()).collect()))
+    Ok(web::Json(words.into_iter().map(|w| w.into()).collect()))
 }
 
+/// Delete a word by ID
+#[utoipa::path(
+    responses(
+        (status = 204, description = "Word deleted successfully"),
+        (status = 403, description = "Word does not belong to user"),
+        (status = 500, description = "Internal server error")
+    ),
+    security(
+        ("Authorization" = ["Bearer"])
+    ),
+    params(
+        ("Authorization" = String, description = "Bearer token"),
+        ("word_id" = i32, description = "The ID of the word to delete")
+    )
+)]
 #[delete("/words/{word_id}")]
 pub async fn delete(
     state: web::Data<AppState>,
@@ -124,11 +139,25 @@ pub async fn delete(
     Ok(actix_web::HttpResponse::NoContent().finish())
 }
 
+/// Translate text
+#[utoipa::path(
+    responses(
+        (status = 200, description = "Translated text retrieved successfully", body = TranslateResponse),
+        (status = 500, description = "Internal server error")
+    ),
+    security(
+        ("Authorization" = ["Bearer"])
+    ),
+    params(
+        ("Authorization" = String, description = "Bearer token"),
+        ("text" = String, Query, description = "The text to translate")
+    )
+)]
 #[get("/translate")]
 pub async fn translate(
     state: web::Data<AppState>,
-    query: Query<TranslateParams>,
-) -> Result<Json<TranslateResponse>> {
+    query: web::Query<TranslateParams>,
+) -> Result<web::Json<TranslateResponse>> {
     let text = query.text.clone();
     let translated_text = engine::translate::translate_text(
         &state.google_translate_api_key,
@@ -138,11 +167,28 @@ pub async fn translate(
     )
     .await
     .map_err(engine::error::Error::into_actix_error)?;
-    Ok(Json(TranslateResponse {
+    Ok(web::Json(TranslateResponse {
         text: translated_text,
     }))
 }
 
+#[utoipa::path(
+    request_body = ReviewParams,
+    responses(
+        (status = 204, description = "Review updated successfully"),
+        (status = 400, description = "Invalid request body"),
+        (status = 403, description = "Word does not belong to user"),
+        (status = 500, description = "Internal server error")
+    ),
+    security(
+        ("Authorization" = ["Bearer"])
+    ),
+    params(
+        ("Authorization" = String, description = "Bearer token"),
+        ("word_id" = i32, description = "The ID of the word to review"),
+        ("recall_score" = u32, description = "The recall score for the word")
+    )
+)]
 #[post("/review")]
 pub async fn review(
     state: web::Data<AppState>,

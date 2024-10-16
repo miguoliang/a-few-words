@@ -32,7 +32,14 @@ mod restful;
         title = "A Few Words API",
         description = "A RESTful API for managing words"
     ),
-    paths(restful::retrieve)
+    paths(
+        restful::retrieve,
+        restful::add,
+        restful::list,
+        restful::delete,
+        restful::translate
+    ),
+    components(schemas(dto::NewWord, dto::Word, dto::TranslateResponse))
 )]
 struct ApiDoc;
 

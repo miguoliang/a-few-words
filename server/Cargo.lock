@@ -574,6 +574,7 @@ dependencies = [
  "percent-encoding",
  "reqwest",
  "serde",
+ "serde_json",
  "shuttle-actix-web",
  "shuttle-runtime",
  "shuttle-shared-db",
