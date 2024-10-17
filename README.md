@@ -15,9 +15,10 @@ This application consists of two parts: a browser extension and a server. The br
 ## Roadmap
 
 - [x] Users can capture new words from web pages by clicking the menu item in the context menu.
-- [x] Users can login to the web app and view the captured words.
+- [ ] Users can browse and remove the captured words in both of web app and Chrome extension.
 - [ ] Users can review words and mark them as learned or not learned in both of web app and Chrome extension.
-- [ ] The application provides a forgetting curve algorithm implementation to help users practice words.
+- [ ] Users can practice words with the help of the application's forgetting curve algorithm implementation.
+- [ ] Users can trace their learning progress in both of web app and Chrome extension.
 
 ## Support
 
