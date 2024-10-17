@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "orval": "orval --config orval.config.cjs"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.56.2",
