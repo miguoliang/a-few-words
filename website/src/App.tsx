@@ -1,43 +1,21 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from 'react';
+import { useRoutes, Navigate, BrowserRouter } from 'react-router-dom';
 import { userManager } from "./oidc";
 import { User } from "oidc-client-ts";
+import getRoutes from './routes';
 
-const LoginButton = () => {
-  return <button
-    onClick={() => {
-      userManager.signinRedirect();
-    }}
-  >
-    Login
-  </button>
-}
+const AppRoutes: React.FC<{ isAuthenticated: boolean }> = ({ isAuthenticated }) => {
+  const routes = getRoutes(isAuthenticated);
+  const element = useRoutes([
+    ...routes,
+    { path: '*', element: <Navigate to="/" replace /> }
+  ]);
+  return element;
+};
 
-const LogoutButton = () => {
-  return <button
-    onClick={() => {
-      const clientId = import.meta.env.VITE_OIDC_CLIENT_ID;
-      const logoutUri = import.meta.env.VITE_OIDC_POST_LOGOUT_REDIRECT_URI;
-
-      if (!clientId || !logoutUri) {
-        console.error("Missing OIDC configuration");
-        return;
-      }
-
-      userManager.signoutRedirect({
-        extraQueryParams: {
-          client_id: clientId,
-          logout_uri: logoutUri,
-          response_type: "code",
-        },
-      });
-    }}
-  >
-    Logout
-  </button>
-}
-
-export default function App() {
+const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const updateUser = async () => {
@@ -47,12 +25,13 @@ export default function App() {
       } catch (error) {
         console.error("Error fetching user:", error);
         setUser(null);
+      } finally {
+        setLoading(false);
       }
     };
 
     updateUser();
 
-    // Add event listeners for user changes
     const handleUserLoaded = (user: User) => setUser(user);
     const handleUserUnloaded = () => setUser(null);
 
@@ -65,9 +44,15 @@ export default function App() {
     };
   }, []);
 
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
   return (
-    <div className="flex flex-col items-stretch justify-center gap-8 px-8 -mt-16 h-[100vh]">
-      {user ? <LogoutButton /> : <LoginButton />}
-    </div>
-  )
-}
+    <BrowserRouter>
+      <AppRoutes isAuthenticated={!!user} />
+    </BrowserRouter>
+  );
+};
+
+export default App;

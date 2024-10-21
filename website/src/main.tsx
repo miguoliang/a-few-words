@@ -2,9 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { MESSAGE_NAME, userManager } from "./oidc";
-import Dashboard from "./Dashboard.tsx";
 
 // Check if this app is launched by a redirect uri of oidc provider
 const url = new URL(window.location.href);
@@ -70,11 +68,6 @@ window.addEventListener("message", (event) => {
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<App />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-      </Routes>
-    </BrowserRouter>
+    <App />
   </StrictMode>
 );
