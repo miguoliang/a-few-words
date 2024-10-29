@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { Outlet } from "react-router-dom";
+import { Outlet, useNavigate } from "react-router-dom";
+import { userManager } from "./oidc";
 
 // Updated Header component with collapse button
 // Updated Header component with collapse button on the left
@@ -7,12 +8,23 @@ const Header: React.FC<{
   isSidebarOpen: boolean;
   toggleSidebar: () => void;
 }> = ({ isSidebarOpen, toggleSidebar }) => {
+  const navigate = useNavigate();
+  const handleLogout = () => {
+    // Sign out the user
+    userManager.signoutRedirect();
+    // Redirect to login page
+    navigate('/login');
+  };
+
   return (
-    <header className="bg-primary text-primary-content p-4 flex items-center">
-      <button className="text-xl mr-4" onClick={toggleSidebar}>
-        {isSidebarOpen ? "←" : "→"}
-      </button>
-      <h1 className="text-2xl font-bold">Dashboard Header</h1>
+    <header className="bg-primary text-primary-content p-4 flex items-center justify-between">
+      <div className="flex items-center">
+        <button className="text-xl mr-4" onClick={toggleSidebar}>
+          {isSidebarOpen ? "←" : "→"}
+        </button>
+        <h1 className="text-2xl font-bold">Dashboard Header</h1>
+      </div>
+      <button className="btn btn-ghost" onClick={handleLogout}>Logout</button>
     </header>
   );
 };

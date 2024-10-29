@@ -1,100 +1,16 @@
-import React, { useRef, useEffect } from 'react';
+import React from 'react';
 
 const AnimatedBackground: React.FC = () => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const backgroundText = `My father's family name being Pirrip, and my Christian name Philip, my infant tongue could make of both names nothing longer or more explicit than Pip. So, I called myself Pip, and came to be called Pip. I give Pirrip as my father's family name, on the authority of his tombstone and my sister,—Mrs. Joe Gargery, who married the blacksmith. As I never saw my father or my mother, and never saw any likeness of either of them (for their days were long before the days of photographs), my first fancies regarding what they were like were unreasonably derived from their tombstones. The shape of the letters on my father's, gave me an odd idea that he was a square, stout, dark man, with curly black hair. From the character and turn of the inscription, "Also Georgiana Wife of the Above," I drew a childish conclusion that my mother was freckled and sickly. Ours was the marsh country, down by the river, within, as the river wound, twenty miles of the sea. My first most vivid and broad impression of the identity of things seems to me to have been gained on a memorable raw afternoon towards evening. `.repeat(20);
 
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-
-    const particles: Particle[] = [];
-    const particleCount = 100;
-
-    class Particle {
-      x: number;
-      y: number;
-      size: number;
-      speedX: number;
-      speedY: number;
-      constructor() {
-        this.x = Math.random() * (canvas?.width ?? 0);
-        this.y = Math.random() * (canvas?.height ?? 0);
-        this.size = Math.random() * 5 + 1;
-        this.speedX = Math.random() * 3 - 1.5;
-        this.speedY = Math.random() * 3 - 1.5;
-      }
-
-      update() {
-        this.x += this.speedX;
-        this.y += this.speedY;
-
-        if (this.x > (canvas?.width ?? 0)) this.x = 0;
-        else if (this.x < 0) this.x = canvas?.width ?? 0;
-        if (this.y > (canvas?.height ?? 0)) this.y = 0;
-        else if (this.y < 0) this.y = canvas?.height ?? 0;
-      }
-
-      draw() {
-        ctx!.fillStyle = 'rgba(200, 200, 255, 0.5)';
-        ctx!.beginPath();
-        ctx!.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-        ctx!.closePath();
-        ctx!.fill();
-      }
-    }
-
-    function init() {
-      for (let i = 0; i < particleCount; i++) {
-        particles.push(new Particle());
-      }
-    }
-
-    function animate() {
-      if (!ctx || !canvas) return;
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      for (let i = 0; i < particles.length; i++) {
-        particles[i].update();
-        particles[i].draw();
-        for (let j = i; j < particles.length; j++) {
-          const dx = particles[i].x - particles[j].x;
-          const dy = particles[i].y - particles[j].y;
-          const distance = Math.sqrt(dx * dx + dy * dy);
-          if (distance < 100) {
-            ctx.beginPath();
-            ctx.strokeStyle = `rgba(200, 200, 255, ${1 - distance / 100})`;
-            ctx.lineWidth = 1;
-            ctx.moveTo(particles[i].x, particles[i].y);
-            ctx.lineTo(particles[j].x, particles[j].y);
-            ctx.stroke();
-            ctx.closePath();
-          }
-        }
-      }
-      requestAnimationFrame(animate);
-    }
-
-    init();
-    animate();
-
-    const handleResize = () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-    };
-
-    window.addEventListener('resize', handleResize);
-
-    return () => {
-      window.removeEventListener('resize', handleResize);
-    };
-  }, []);
-
-  return <canvas ref={canvasRef} className="absolute top-0 left-0 -z-10" />;
+  return (
+    <div className="fixed top-0 left-0 -z-10 w-screen h-screen overflow-hidden select-none pointer-events-none bg-gray-900">
+      <div className="animate-scroll whitespace-pre-wrap text-gray-100/5 text-xs leading-tight p-4">
+        {backgroundText}
+        {backgroundText}
+      </div>
+    </div>
+  );
 };
 
 export default AnimatedBackground;
