@@ -1,16 +1,15 @@
 import React from 'react';
 import { userManager } from "../oidc";
 import AnimatedBackground from './AnimatedBackground';
+import Logo from './Logo';
 
 const LoginPage: React.FC = () => {
   return (
     <div className="relative flex items-center justify-center h-screen overflow-hidden">
       <AnimatedBackground />
       <div className="z-10 bg-gray-800 bg-opacity-80 p-8 rounded-lg shadow-2xl transform hover:scale-105 transition-transform duration-300">
-        <h1 className="text-4xl font-bold mb-6 text-center bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-teal-300">
-          Welcome to Word Browser
-        </h1>
-        <p className="text-gray-300 mb-8 text-center">
+        <Logo />
+        <p className="text-gray-300 mb-8 text-center mt-3">
           Explore the world of words with our amazing tool!
         </p>
         <button
