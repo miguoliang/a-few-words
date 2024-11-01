@@ -1,6 +1,8 @@
 import React, { useState } from "react";
-import { Outlet, useNavigate } from "react-router-dom";
+import { Outlet, useNavigate, Link, useLocation } from "react-router-dom";
 import { userManager } from "./oidc";
+import { AnimatePresence } from 'framer-motion';
+import PageTransition from './components/PageTransition';
 
 // Updated Header component with collapse button
 // Updated Header component with collapse button on the left
@@ -21,8 +23,8 @@ const Header: React.FC<{
       {/* Left side: Sidebar Toggle & Title */}
       <div className="flex items-center gap-4">
         {/* Sidebar Toggle Button */}
-        <button 
-          className="btn btn-ghost btn-circle hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" 
+        <button
+          className="btn btn-ghost btn-circle hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
           onClick={toggleSidebar}
           aria-label="Toggle Sidebar"
         >
@@ -36,13 +38,15 @@ const Header: React.FC<{
             </svg>
           )}
         </button>
-        <h1 className="text-xl font-semibold text-gray-800 dark:text-gray-100">Dashboard Header</h1>
+        <h1 className="text-xl font-semibold text-gray-800 dark:text-gray-100">
+          Learning Hub
+        </h1>
       </div>
 
       {/* Right side: Help, Theme Toggle & User Menu */}
       <div className="flex items-center gap-3">
         {/* Help Button */}
-        <button 
+        <button
           className="btn btn-ghost btn-circle hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
           aria-label="Help"
         >
@@ -52,8 +56,8 @@ const Header: React.FC<{
         </button>
 
         {/* Dark Mode Toggle Button */}
-        <button 
-          onClick={() => document.documentElement.classList.toggle('dark')} 
+        <button
+          onClick={() => document.documentElement.classList.toggle('dark')}
           className="btn btn-ghost btn-circle hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
           aria-label="Toggle Dark Mode"
         >
@@ -64,8 +68,8 @@ const Header: React.FC<{
 
         {/* User Menu Dropdown */}
         <div className="dropdown dropdown-end">
-          <label 
-            tabIndex={0} 
+          <label
+            tabIndex={0}
             className="btn btn-ghost btn-circle hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
             aria-label="User Menu"
           >
@@ -86,6 +90,7 @@ const Header: React.FC<{
 
 const Dashboard: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const location = useLocation();
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-900">
@@ -95,16 +100,17 @@ const Dashboard: React.FC = () => {
           isSidebarOpen ? "w-[90%]" : "w-full"
         } bg-gray-50 dark:bg-gray-900 transition-all duration-300 flex flex-col`}
       >
-        <Header 
+        <Header
           isSidebarOpen={isSidebarOpen}
           toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
         />
         <div className="p-6 flex-grow overflow-auto">
-          <div className="max-w-7xl mx-auto">
-            <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-6">Dashboard</h2>
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
-              <Outlet />
-            </div>
+          <div className="max-w-9xl mx-auto">
+            <AnimatePresence mode="wait">
+              <PageTransition key={location.pathname}>
+                <Outlet />
+              </PageTransition>
+            </AnimatePresence>
           </div>
         </div>
       </div>
@@ -115,20 +121,27 @@ const Dashboard: React.FC = () => {
 const Sidebar: React.FC<{ isOpen: boolean }> = ({ isOpen }) => {
   return (
     <div
-      className={`${
-        isOpen ? "w-[10%]" : "w-0"
-      } bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 overflow-hidden shadow-sm`}
+      className={`${isOpen ? "w-[10%]" : "w-0"
+        } bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 overflow-hidden shadow-sm`}
     >
       <div className="p-6 w-full">
         <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-6">Navigation</h2>
         <nav className="space-y-2">
-          <a href="#" className="flex items-center gap-2 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg p-2 transition-colors">
+          {/* Overview Link */}
+          <Link to="/" className="flex items-center gap-2 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg p-2 transition-colors">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
               <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
             </svg>
-            Home
-          </a>
-          {/* Add more nav items as needed */}
+            Overview
+          </Link>
+
+          {/* Word Browser Link */}
+          <Link to="/words" className="flex items-center gap-2 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg p-2 transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
+            </svg>
+            Words
+          </Link>
         </nav>
       </div>
     </div>
