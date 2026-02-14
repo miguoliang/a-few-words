@@ -1,7 +1,7 @@
 {
   "name": "a-few-words",
   "displayName": "A few words",
-  "version": "0.0.1",
+  "version": "1.0.3",
   "description": "Record words when you see them. Review them when you need them. All actions are done in the side panel of your browser.",
   "author": "Mi Guoliang <boymgl@qq.com>",
   "scripts": {
